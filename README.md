@@ -16,6 +16,13 @@ Ultimate Tic-Tac-Toe[^orlin2022] game to the above: the cell positions of the pa
 by one player determines the mini-board(s) that the opponent must play on next.
 
 
+## How to run
+
+- Desktop: `./gradlew :composeApp:run`
+- Web:     `./gradlew :composeApp:wasmJsBrowserDevelopmentRun`
+- Android: `./gradlew :composeApp:assembleDebug` (APK lands in `composeApp/build/outputs/apk/debug/`)
+
+
 [^goff2006]: Allan Goff, "Quantum tic-tac-toe: A teaching metaphor for
     superposition in quantum mechanics", *American Journal of Physics*,
     vol. 74, no. 11, pp. 962-973, 2006. ISSN 0002-9505.
