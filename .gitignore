@@ -1,0 +1,16 @@
+.gradle/
+.kotlin/
+build/
+**/build/
+local.properties
+
+.idea/
+*.iml
+.fleet/
+kls_database.db
+kotlin-js-store/
+
+.DS_Store
+
+captures/
+xcuserdata/
