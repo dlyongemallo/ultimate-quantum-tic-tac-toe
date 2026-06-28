@@ -42,12 +42,16 @@ internal fun gameOverOutcomeText(state: GameState): String =
 
 /**
  * Final modal. Outcome falls out of `GameState`'s computed properties.
- * Buttons: Play again resets the board state; Main menu pops to the
- * opening screen.
+ * Buttons: Undo rewinds the move that ended the game (always available
+ * here -- you cannot reach game-over without having committed at
+ * least one move, which the undo stack records); Play again resets
+ * the board state; Main menu pops to the opening screen. After Undo
+ * the game is no longer over and the dialog auto-dismisses.
  */
 @Composable
 fun GameOverDialog(
     state: GameState,
+    onUndo: () -> Unit,
     onPlayAgain: () -> Unit,
     onMainMenu: () -> Unit,
 ) {
@@ -59,6 +63,7 @@ fun GameOverDialog(
         // Same Row trick as `CollapsePicker`: keep declaration order.
         confirmButton = {
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                TextButton(onClick = onUndo) { Text("Undo") }
                 TextButton(onClick = onPlayAgain) { Text("Play again") }
                 TextButton(onClick = onMainMenu) { Text("Main menu") }
             }
