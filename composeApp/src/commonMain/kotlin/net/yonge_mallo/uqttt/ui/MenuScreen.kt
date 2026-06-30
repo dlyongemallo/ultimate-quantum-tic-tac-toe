@@ -41,9 +41,10 @@ import net.yonge_mallo.uqttt.BuildInfo
 import net.yonge_mallo.uqttt.engine.Variant
 
 /**
- * The opening screen. Radio-button groups for variant and players, with
- * a Start button that hands a `GameSetup` back to the navigator in
- * `App.kt`. State lives in this composable via `remember`.
+ * The opening screen. Radio-button groups for variant, players, and
+ * (when at least one player is AI) difficulty, with a Start button that
+ * hands a `GameSetup` back to the navigator in `App.kt`. State lives
+ * in this composable via `remember`.
  */
 @Composable
 fun MenuScreen(
@@ -52,6 +53,9 @@ fun MenuScreen(
 ) {
     var variant: Variant by remember { mutableStateOf(initialSetup.variant) }
     var players: PlayersConfig by remember { mutableStateOf(initialSetup.players) }
+    var difficulty: Difficulty by remember { mutableStateOf(initialSetup.difficulty) }
+
+    val hasAi = players.aiPlayers().isNotEmpty()
 
     Column(
         modifier = Modifier.fillMaxSize().padding(24.dp),
@@ -89,10 +93,22 @@ fun MenuScreen(
                     )
                 }
             }
+
+            if (hasAi) {
+                Section(title = "AI difficulty") {
+                    Difficulty.entries.forEach { d ->
+                        ChoiceRow(
+                            label = d.label,
+                            selected = d == difficulty,
+                            onSelect = { difficulty = d },
+                        )
+                    }
+                }
+            }
         }
 
         Button(
-            onClick = { onStart(GameSetup(variant, players)) },
+            onClick = { onStart(GameSetup(variant, players, difficulty)) },
             modifier = Modifier.align(Alignment.CenterHorizontally),
         ) {
             Text("Start")

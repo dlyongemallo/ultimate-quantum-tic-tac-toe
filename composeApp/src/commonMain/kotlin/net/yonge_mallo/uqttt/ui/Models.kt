@@ -47,9 +47,9 @@ enum class PlayerKind {
 }
 
 /**
- * The player pairings offered by the opening screen. AI-vs-AI is
- * intentionally not offered: the app is for a human (or two) to play,
- * not to watch.
+ * The three player pairings offered by the opening screen. AI-vs-AI
+ * is intentionally not offered: the app is for a human (or two) to
+ * play, not to watch.
  */
 enum class PlayersConfig(
     val label: String,
@@ -57,12 +57,39 @@ enum class PlayersConfig(
     val oKind: PlayerKind,
 ) {
     HUMAN_VS_HUMAN("Human vs Human", PlayerKind.HUMAN, PlayerKind.HUMAN),
+    HUMAN_VS_AI("Human vs AI (human is X)", PlayerKind.HUMAN, PlayerKind.AI),
+    AI_VS_HUMAN("AI vs Human (AI is X)", PlayerKind.AI, PlayerKind.HUMAN),
+}
+
+/**
+ * AI strength setting. The primary knob is `maxMoveIterations`:
+ * the *total* number of MCTS iterations the search performs across
+ * all workers. Root parallelism splits this budget across the
+ * available cores, so a label corresponds to the same total
+ * exploration on every platform. The time caps are a safety net so
+ * slow single-threaded targets (Wasm in a browser) don't hang
+ * indefinitely on the higher tiers; the search terminates at
+ * whichever cap fires first.
+ */
+enum class Difficulty(
+    val label: String,
+    val maxMoveIterations: Int,
+    val maxMoveTimeMs: Long,
+    val maxCollapseIterations: Int,
+    val maxCollapseTimeMs: Long,
+) {
+    BEGINNER("Beginner", 2_000, 3_000, 1_000, 1_000),
+    EASY("Easy", 10_000, 6_000, 3_500, 2_000),
+    MEDIUM("Medium", 40_000, 10_000, 10_000, 3_000),
+    HARD("Hard", 100_000, 15_000, 25_000, 5_000),
+    EXPERT("Expert", 250_000, 20_000, 60_000, 8_000),
 }
 
 /** The settings chosen on the opening screen and consumed by the game screen. */
 data class GameSetup(
     val variant: Variant,
     val players: PlayersConfig,
+    val difficulty: Difficulty = Difficulty.MEDIUM,
 )
 
 /** The two screens the app currently has; navigation is a `when` on the current value. */

@@ -26,6 +26,7 @@ import net.yonge_mallo.uqttt.engine.GameState
 import net.yonge_mallo.uqttt.engine.IllegalReason
 import net.yonge_mallo.uqttt.engine.Move
 import net.yonge_mallo.uqttt.engine.MoveResult
+import net.yonge_mallo.uqttt.engine.Player
 import net.yonge_mallo.uqttt.engine.Rules
 import net.yonge_mallo.uqttt.engine.Square
 import net.yonge_mallo.uqttt.engine.Variant
@@ -42,7 +43,10 @@ import net.yonge_mallo.uqttt.engine.Variant
  * rewinding the move itself. Any new commit clears the redo stack
  * (history forks).
  */
-class GameViewModel(initial: GameState) {
+class GameViewModel(
+    initial: GameState,
+    private val aiPlayers: Set<Player> = emptySet(),
+) {
     var current: GameState by mutableStateOf(initial)
         private set
 
@@ -51,6 +55,13 @@ class GameViewModel(initial: GameState) {
 
     var illegalReason: IllegalReason? by mutableStateOf(null)
         private set
+
+    /**
+     * Set true while the AI is computing a move or collapse choice.
+     * Public setter so the GameScreen's AI `LaunchedEffect` can flip it
+     * around its try / finally without an extra wrapper method.
+     */
+    var thinking: Boolean by mutableStateOf(false)
 
     // SnapshotStateList drives `canUndo` / `canRedo` recomposition.
     private val undoStack = mutableStateListOf<GameState>()
@@ -113,6 +124,7 @@ class GameViewModel(initial: GameState) {
      * successful second tap submits the move via `Rules.apply`.
      */
     fun onSquareTap(square: Square) {
+        if (thinking) return
         if (current.pendingCollapse != null || current.isGameOver) return
         if (square in current.classical) return
 
@@ -150,20 +162,52 @@ class GameViewModel(initial: GameState) {
         commit(Rules.resolve(current, choice))
     }
 
-    /** Pop one state off the undo stack and make it current. */
+    /**
+     * Apply a move chosen by the AI. Bypasses the selection state
+     * machine and trusts that the AI proposed something legal; an
+     * illegal proposal is a programmer error worth crashing on.
+     */
+    fun applyAiMove(move: Move) {
+        when (val result = Rules.apply(current, move)) {
+            is MoveResult.Legal -> commit(result.nextState)
+            is MoveResult.TriggersCollapse -> commit(result.pendingState)
+            is MoveResult.Illegal -> error("AI proposed an illegal move: ${result.reason}")
+        }
+    }
+
+    /**
+     * Pop one state off the undo stack -- and keep popping while the
+     * resulting state's active player is an AI, since the
+     * `LaunchedEffect` in `GameScreen` would otherwise just re-run the
+     * AI and put the same move back. Stops at any human-controllable
+     * state, or when the stack is empty.
+     */
     fun undo() {
         if (undoStack.isEmpty()) return
-        redoStack.add(current)
-        current = undoStack.removeAt(undoStack.lastIndex)
+        do {
+            redoStack.add(current)
+            current = undoStack.removeAt(undoStack.lastIndex)
+        } while (undoStack.isNotEmpty() && activePlayer(current) in aiPlayers)
         selection = null
     }
 
-    /** Mirror of `undo`: replay one state from the redo stack. */
+    /** Mirror of `undo`: chains through recorded AI states so a single redo lands on a human-controllable state. */
     fun redo() {
         if (redoStack.isEmpty()) return
-        undoStack.add(current)
-        current = redoStack.removeAt(redoStack.lastIndex)
+        do {
+            undoStack.add(current)
+            current = redoStack.removeAt(redoStack.lastIndex)
+        } while (redoStack.isNotEmpty() && activePlayer(current) in aiPlayers)
         selection = null
+    }
+
+    private fun activePlayer(state: GameState): Player? {
+        val pending = state.pendingCollapse
+        return when {
+            state.isGameOver -> null
+            pending != null -> pending.chooser
+            else -> state.nextPlayer
+        }
     }
 
     fun dismissIllegalReason() {
@@ -175,6 +219,7 @@ class GameViewModel(initial: GameState) {
         current = state
         selection = null
         illegalReason = null
+        thinking = false
         undoStack.clear()
         redoStack.clear()
     }

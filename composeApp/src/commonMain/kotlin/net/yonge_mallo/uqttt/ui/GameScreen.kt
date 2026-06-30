@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -51,6 +52,11 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.launch
+import net.yonge_mallo.uqttt.ai.chooseCollapse
+import net.yonge_mallo.uqttt.ai.chooseMove
 import net.yonge_mallo.uqttt.engine.CollapseChoice
 import net.yonge_mallo.uqttt.engine.IllegalReason
 import net.yonge_mallo.uqttt.engine.Rules
@@ -61,18 +67,21 @@ import net.yonge_mallo.uqttt.ui.game.CollapsePicker
 import net.yonge_mallo.uqttt.ui.game.GameOverDialog
 import net.yonge_mallo.uqttt.ui.game.GameViewModel
 import net.yonge_mallo.uqttt.ui.game.differingSquares
+import kotlin.coroutines.coroutineContext
+import kotlin.time.TimeSource
 
 /**
  * The game screen. Scaffold provides the top bar (back to menu, undo,
- * redo) and a SnackbarHost for illegal-move feedback. The body is the
- * board (square) sitting alongside a `CollapsePicker` panel when a
- * collapse is pending; the picker lives beside the board in landscape
- * and below it in portrait, so the board itself is never obscured.
- * Selecting a radio in the picker switches the displayed board to
- * `Rules.resolve(...)` of the pending state, previewing the chosen
- * outcome live. Ctrl+Z and Ctrl+Shift+Z (or Ctrl+Y) fire undo / redo
- * on platforms that supply key events to the focused Scaffold
- * (desktop; Wasm / Android with a physical keyboard).
+ * redo, "Thinking..." indicator) and a SnackbarHost for illegal-move
+ * feedback. The body is the board (square) sitting alongside a
+ * `CollapsePicker` panel when the chooser is a human; the picker
+ * lives beside the board in landscape and below it in portrait, so
+ * the board itself is never obscured. Selecting a radio in the
+ * picker switches the displayed board to `Rules.resolve(...)` of the
+ * pending state, previewing the chosen outcome live. Ctrl+Z and
+ * Ctrl+Shift+Z fire undo / redo on platforms that supply key events
+ * to the focused Scaffold (desktop; Wasm / Android with a physical
+ * keyboard).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -80,13 +89,20 @@ fun GameScreen(
     setup: GameSetup,
     onExit: () -> Unit,
 ) {
-    val viewModel = remember(setup) { GameViewModel(initial = Rules.initial(setup.variant)) }
+    val viewModel =
+        remember(setup) {
+            GameViewModel(
+                initial = Rules.initial(setup.variant),
+                aiPlayers = setup.players.aiPlayers(),
+            )
+        }
     val snackbarHostState = remember { SnackbarHostState() }
     val illegalReason = viewModel.illegalReason
     val focusRequester = remember { FocusRequester() }
 
     var previewChoice: CollapseChoice? by remember { mutableStateOf(null) }
     var showBackConfirm: Boolean by remember { mutableStateOf(false) }
+    var thinkingProgress: Float by remember { mutableStateOf(0f) }
 
     // Re-request focus whenever the picker is gone (initial mount and after
     // every collapse resolves). The picker's radio rows and Confirm button
@@ -115,19 +131,75 @@ fun GameScreen(
     // pending state would be applied to the wrong base state.
     LaunchedEffect(pending) { previewChoice = null }
 
+    // AI turns. Re-keyed on `current` so undo / new moves cancel any
+    // in-flight AI run; the `finally` always clears the thinking flag,
+    // and the cancellation check before applying guards against an AI
+    // result arriving after a concurrent undo. A sibling coroutine
+    // ticks `thinkingProgress` so the linear progress bar under the
+    // top bar can fill smoothly.
+    LaunchedEffect(state, setup.players) {
+        if (state.isGameOver) return@LaunchedEffect
+        val toAct = pending?.chooser ?: state.nextPlayer
+        if (setup.players.kindFor(toAct) != PlayerKind.AI) return@LaunchedEffect
+        val maxIterations =
+            if (pending != null) {
+                setup.difficulty.maxCollapseIterations
+            } else {
+                setup.difficulty.maxMoveIterations
+            }
+        val maxTimeMs =
+            if (pending != null) {
+                setup.difficulty.maxCollapseTimeMs
+            } else {
+                setup.difficulty.maxMoveTimeMs
+            }
+        viewModel.thinking = true
+        val start = TimeSource.Monotonic.markNow()
+        // Progress bar tracks wall-clock against the time cap; the AI may
+        // exit early when its iteration cap fires, in which case `finally`
+        // resets the bar to 0 and we move on.
+        val progressJob =
+            launch {
+                while (true) {
+                    val frac =
+                        (start.elapsedNow().inWholeMilliseconds.toFloat() / maxTimeMs)
+                            .coerceIn(0f, 1f)
+                    thinkingProgress = frac
+                    delay(50)
+                }
+            }
+        try {
+            if (pending != null) {
+                val choice = chooseCollapse(state, maxIterations, maxTimeMs)
+                coroutineContext.ensureActive()
+                viewModel.resolveCollapse(choice)
+            } else {
+                val move = chooseMove(state, maxIterations, maxTimeMs)
+                coroutineContext.ensureActive()
+                viewModel.applyAiMove(move)
+            }
+        } finally {
+            progressJob.cancel()
+            thinkingProgress = 0f
+            viewModel.thinking = false
+        }
+    }
+
+    val humanPicker = pending != null && setup.players.kindFor(pending.chooser) == PlayerKind.HUMAN
     val displayedState =
-        if (pending != null && previewChoice != null) {
+        if (humanPicker && previewChoice != null) {
             Rules.resolve(state, previewChoice!!)
         } else {
             state
         }
-    val diff = if (pending != null) differingSquares(pending) else emptyList()
+    val diff = if (humanPicker && pending != null) differingSquares(pending) else emptyList()
     val highlightedSquares = diff.toSet()
     // Prefer a triggering-move endpoint when it's in the diff -- it's the
     // square the chooser's eye is already on -- otherwise just the first
-    // differing square in reading order.
+    // differing square in reading order. Auto-resolve guarantees diff is
+    // non-empty whenever humanPicker is true.
     val indicatorSquare: Square? =
-        if (pending != null) {
+        if (humanPicker) {
             val triggering = setOfNotNull(state.lastMove?.a, state.lastMove?.b)
             diff.firstOrNull { it in triggering } ?: diff.firstOrNull()
         } else {
@@ -164,22 +236,35 @@ fun GameScreen(
                     }
                 },
         topBar = {
-            TopAppBar(
-                title = { Text(setup.variant.displayName()) },
-                navigationIcon = {
-                    TextButton(onClick = { showBackConfirm = true }) { Text("Back") }
-                },
-                actions = {
-                    TextButton(
-                        onClick = viewModel::undo,
-                        enabled = viewModel.canUndo,
-                    ) { Text("Undo") }
-                    TextButton(
-                        onClick = viewModel::redo,
-                        enabled = viewModel.canRedo,
-                    ) { Text("Redo") }
-                },
-            )
+            // `LinearProgressIndicator` lives below `TopAppBar`, not in
+            // its `actions` slot, so the bar's `actions` no longer
+            // squeeze the title. Conditional rendering means the bar
+            // is only drawn while the AI is thinking; the small layout
+            // shift when it appears is itself useful feedback.
+            Column {
+                TopAppBar(
+                    title = { Text(setup.variant.displayName()) },
+                    navigationIcon = {
+                        TextButton(onClick = { showBackConfirm = true }) { Text("Back") }
+                    },
+                    actions = {
+                        TextButton(
+                            onClick = viewModel::undo,
+                            enabled = viewModel.canUndo,
+                        ) { Text("Undo") }
+                        TextButton(
+                            onClick = viewModel::redo,
+                            enabled = viewModel.canRedo,
+                        ) { Text("Redo") }
+                    },
+                )
+                if (viewModel.thinking) {
+                    LinearProgressIndicator(
+                        progress = { thinkingProgress },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
@@ -187,7 +272,7 @@ fun GameScreen(
             modifier = Modifier.fillMaxSize().padding(padding).padding(8.dp),
         ) {
             val landscape = maxWidth > maxHeight
-            if (pending != null) {
+            if (humanPicker && pending != null) {
                 val onConfirm: () -> Unit = {
                     previewChoice?.let(viewModel::resolveCollapse)
                 }
