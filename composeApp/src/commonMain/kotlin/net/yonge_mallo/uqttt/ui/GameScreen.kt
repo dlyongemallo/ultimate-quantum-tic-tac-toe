@@ -16,6 +16,7 @@
 
 package net.yonge_mallo.uqttt.ui
 
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -40,6 +41,15 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.isCtrlPressed
+import androidx.compose.ui.input.key.isShiftPressed
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.unit.dp
 import net.yonge_mallo.uqttt.engine.CollapseChoice
 import net.yonge_mallo.uqttt.engine.IllegalReason
@@ -53,14 +63,16 @@ import net.yonge_mallo.uqttt.ui.game.GameViewModel
 import net.yonge_mallo.uqttt.ui.game.differingSquares
 
 /**
- * The game screen. Scaffold provides the top bar (back to menu) and a
- * SnackbarHost for illegal-move feedback. The body is the board
- * (square) sitting alongside a `CollapsePicker` panel when a collapse
- * is pending; the picker lives beside the board in landscape and
- * below it in portrait, so the board itself is never obscured.
+ * The game screen. Scaffold provides the top bar (back to menu, undo,
+ * redo) and a SnackbarHost for illegal-move feedback. The body is the
+ * board (square) sitting alongside a `CollapsePicker` panel when a
+ * collapse is pending; the picker lives beside the board in landscape
+ * and below it in portrait, so the board itself is never obscured.
  * Selecting a radio in the picker switches the displayed board to
  * `Rules.resolve(...)` of the pending state, previewing the chosen
- * outcome live.
+ * outcome live. Ctrl+Z and Ctrl+Shift+Z (or Ctrl+Y) fire undo / redo
+ * on platforms that supply key events to the focused Scaffold
+ * (desktop; Wasm / Android with a physical keyboard).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -71,9 +83,22 @@ fun GameScreen(
     val viewModel = remember(setup) { GameViewModel(initial = Rules.initial(setup.variant)) }
     val snackbarHostState = remember { SnackbarHostState() }
     val illegalReason = viewModel.illegalReason
+    val focusRequester = remember { FocusRequester() }
 
     var previewChoice: CollapseChoice? by remember { mutableStateOf(null) }
     var showBackConfirm: Boolean by remember { mutableStateOf(false) }
+
+    // Re-request focus whenever the picker is gone (initial mount and after
+    // every collapse resolves). The picker's radio rows and Confirm button
+    // pull focus away from the Scaffold root while they're on screen, and
+    // without this re-request the Ctrl+Z / Ctrl+Y bindings stop firing until
+    // the user clicks one of the top-bar buttons.
+    val pendingForFocus = viewModel.current.pendingCollapse
+    LaunchedEffect(pendingForFocus) {
+        if (pendingForFocus == null) {
+            runCatching { focusRequester.requestFocus() }
+        }
+    }
 
     LaunchedEffect(illegalReason) {
         if (illegalReason != null) {
@@ -118,11 +143,41 @@ fun GameScreen(
             ?.takeIf { Rules.hasLegalMoveWithin(state, it) }
 
     Scaffold(
+        modifier =
+            Modifier
+                .focusRequester(focusRequester)
+                .focusable()
+                .onKeyEvent { event ->
+                    if (event.type != KeyEventType.KeyDown || !event.isCtrlPressed) {
+                        return@onKeyEvent false
+                    }
+                    when (event.key) {
+                        Key.Z -> {
+                            if (event.isShiftPressed) viewModel.redo() else viewModel.undo()
+                            true
+                        }
+                        Key.Y -> {
+                            viewModel.redo()
+                            true
+                        }
+                        else -> false
+                    }
+                },
         topBar = {
             TopAppBar(
                 title = { Text(setup.variant.displayName()) },
                 navigationIcon = {
                     TextButton(onClick = { showBackConfirm = true }) { Text("Back") }
+                },
+                actions = {
+                    TextButton(
+                        onClick = viewModel::undo,
+                        enabled = viewModel.canUndo,
+                    ) { Text("Undo") }
+                    TextButton(
+                        onClick = viewModel::redo,
+                        enabled = viewModel.canRedo,
+                    ) { Text("Redo") }
                 },
             )
         },
@@ -205,6 +260,7 @@ fun GameScreen(
         if (state.isGameOver) {
             GameOverDialog(
                 state = state,
+                onUndo = viewModel::undo,
                 onPlayAgain = { viewModel.reset(Rules.initial(setup.variant)) },
                 onMainMenu = onExit,
             )

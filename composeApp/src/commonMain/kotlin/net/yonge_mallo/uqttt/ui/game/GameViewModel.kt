@@ -18,6 +18,7 @@ package net.yonge_mallo.uqttt.ui.game
 
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import net.yonge_mallo.uqttt.engine.CollapseChoice
@@ -31,8 +32,15 @@ import net.yonge_mallo.uqttt.engine.Variant
 
 /**
  * Backing state for the game screen. Holds the current `GameState`, the
- * in-progress first-endpoint `selection`, and the most recent
- * `illegalReason` (consumed by the snackbar).
+ * in-progress first-endpoint `selection`, the most recent `illegalReason`
+ * (consumed by the snackbar), and undo / redo stacks.
+ *
+ * Each mutation of `current` (a Legal move, a collapse-triggering move,
+ * and a collapse resolution) pushes the pre-mutation state to the undo
+ * stack. Collapse-and-resolve is therefore two undo steps: the user
+ * can undo just the resolution and pick the other choice without
+ * rewinding the move itself. Any new commit clears the redo stack
+ * (history forks).
  */
 class GameViewModel(initial: GameState) {
     var current: GameState by mutableStateOf(initial)
@@ -43,6 +51,13 @@ class GameViewModel(initial: GameState) {
 
     var illegalReason: IllegalReason? by mutableStateOf(null)
         private set
+
+    // SnapshotStateList drives `canUndo` / `canRedo` recomposition.
+    private val undoStack = mutableStateListOf<GameState>()
+    private val redoStack = mutableStateListOf<GameState>()
+
+    val canUndo: Boolean get() = undoStack.isNotEmpty()
+    val canRedo: Boolean get() = redoStack.isNotEmpty()
 
     /**
      * Non-classical squares that the user should be visually warned away
@@ -135,28 +150,53 @@ class GameViewModel(initial: GameState) {
         commit(Rules.resolve(current, choice))
     }
 
+    /** Pop one state off the undo stack and make it current. */
+    fun undo() {
+        if (undoStack.isEmpty()) return
+        redoStack.add(current)
+        current = undoStack.removeAt(undoStack.lastIndex)
+        selection = null
+    }
+
+    /** Mirror of `undo`: replay one state from the redo stack. */
+    fun redo() {
+        if (redoStack.isEmpty()) return
+        undoStack.add(current)
+        current = redoStack.removeAt(redoStack.lastIndex)
+        selection = null
+    }
+
     fun dismissIllegalReason() {
         illegalReason = null
     }
 
-    /** Used by "Play again": fresh game state. */
+    /** Used by "Play again": fresh game state, no history. */
     fun reset(state: GameState) {
         current = state
         selection = null
         illegalReason = null
+        undoStack.clear()
+        redoStack.clear()
     }
 
     private fun commit(newState: GameState) {
         // When both collapse choices lead to the same classical map there
         // is nothing for the chooser to decide; skip the dialog and jump
-        // straight to the resolved state.
+        // straight to the resolved state. The intermediate pending
+        // state never enters the undo stack, so a single undo rewinds
+        // past both the move and the auto-resolution (otherwise a
+        // second undo would re-enter the pending state and immediately
+        // auto-resolve again, looping).
         val pending = newState.pendingCollapse
-        current =
+        val nextCurrent =
             if (pending != null && hasIdenticalOutcomes(pending.choices)) {
                 Rules.resolve(newState, pending.choices.first())
             } else {
                 newState
             }
+        undoStack.add(current)
+        redoStack.clear()
+        current = nextCurrent
         selection = null
     }
 
