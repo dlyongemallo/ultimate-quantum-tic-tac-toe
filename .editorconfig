@@ -1,0 +1,31 @@
+root = true
+
+[*]
+end_of_line = lf
+insert_final_newline = true
+charset = utf-8
+indent_style = space
+indent_size = 4
+trim_trailing_whitespace = true
+
+[*.{kt,kts}]
+max_line_length = 120
+
+# The Kotlin package root is `net.yonge_mallo.uqttt`. The underscore
+# encodes the hyphen in the user's domain `yonge-mallo.net`, following
+# Oracle's convention for package names since identifiers may not
+# contain hyphens.
+ktlint_standard_package-name = disabled
+
+# Compose convention: @Composable functions use PascalCase.
+ktlint_function_naming_ignore_when_annotated_with = Composable
+
+# `function-signature` and `multiline-expression-wrapping` disagree on
+# `fun f(): T = <multiline-expression>` unless the former defers to the
+# latter via this knob: with `multiline`, the body wraps to a new line
+# whenever the body itself spans more than one line, which is exactly
+# what `multiline-expression-wrapping` wants.
+ktlint_function_signature_body_expression_wrapping = multiline
+
+[*.md]
+trim_trailing_whitespace = false
