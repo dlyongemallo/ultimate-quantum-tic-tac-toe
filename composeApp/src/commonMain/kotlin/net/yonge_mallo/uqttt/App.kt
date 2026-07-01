@@ -17,17 +17,25 @@
 package net.yonge_mallo.uqttt
 
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import net.yonge_mallo.uqttt.engine.Variant
+import net.yonge_mallo.uqttt.ui.GameScreen
+import net.yonge_mallo.uqttt.ui.GameSetup
+import net.yonge_mallo.uqttt.ui.MenuScreen
+import net.yonge_mallo.uqttt.ui.PlayersConfig
+import net.yonge_mallo.uqttt.ui.Screen
 
 /**
  * App entry point used by every platform launcher. Platforms that can
@@ -37,12 +45,39 @@ import androidx.compose.ui.Modifier
  */
 @Composable
 fun App(colorScheme: ColorScheme? = null) {
+    // Surface the build identifiers on startup so power users can
+    // verify which build they're running. Lands in the browser
+    // devtools console on Wasm, in logcat on Android, and on stderr
+    // on the desktop binary.
+    LaunchedEffect(Unit) {
+        println("UQTTT build ${BuildInfo.GIT_HASH} (${BuildInfo.COMMIT_DATE})")
+    }
     val darkTheme = isSystemInDarkTheme()
     val scheme = colorScheme ?: if (darkTheme) darkColorScheme() else lightColorScheme()
     MaterialTheme(colorScheme = scheme) {
         Surface(modifier = Modifier.fillMaxSize()) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("Ultimate Quantum Tic-Tac-Toe")
+            var screen: Screen by remember { mutableStateOf(Screen.Menu) }
+            // Remembered across Menu -> Game -> Menu navigation so the menu
+            // re-opens on whichever variant / players combo was last picked.
+            var lastSetup: GameSetup by remember {
+                mutableStateOf(
+                    GameSetup(
+                        variant = Variant.ULTIMATE_QUANTUM_TIC_TAC_TOE,
+                        players = PlayersConfig.HUMAN_VS_HUMAN,
+                    ),
+                )
+            }
+            when (val current = screen) {
+                is Screen.Menu ->
+                    MenuScreen(
+                        initialSetup = lastSetup,
+                        onStart = { setup ->
+                            lastSetup = setup
+                            screen = Screen.Game(setup)
+                        },
+                    )
+                is Screen.Game ->
+                    GameScreen(setup = current.setup, onExit = { screen = Screen.Menu })
             }
         }
     }
