@@ -1,0 +1,92 @@
+name: Deploy web
+
+# Manual only: click "Run workflow" on the Actions tab to publish the current
+# wasm bundle to https://www.yonge-mallo.net/uqttt/game/. Kept off `push` so a
+# broken game can't ship by accident.
+"on":
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Git ref (branch, tag, or SHA) to build and deploy"
+        required: false
+        default: "main"
+
+concurrency:
+  # Serialize deploys so two clicks in a row can't race on rsync.
+  group: deploy-web
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Build wasm bundle and rsync to NFSN
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build production wasm bundle
+        # Distribution (not just ProductionWebpack) is what merges wasmJsMain/resources
+        # (index.html, favicons) with the webpack output into a single deployable folder.
+        run: ./gradlew :composeApp:wasmJsBrowserDistribution
+
+      - name: Verify bundle contents
+        run: |
+          bundle=composeApp/build/dist/wasmJs/productionExecutable
+          test -f "$bundle/index.html"
+          test -f "$bundle/composeApp.js"
+          ls -lh "$bundle"
+
+      - name: Configure SSH for NFSN
+        env:
+          SSH_KEY: ${{ secrets.NFSN_SSH_KEY }}
+        run: |
+          if [ -z "$SSH_KEY" ]; then
+            echo "::error::NFSN_SSH_KEY secret is not set. See .github/workflows/deploy-web.yml for setup steps."
+            exit 1
+          fi
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ssh.nyc1.nearlyfreespeech.net >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Ensure remote directory exists
+        run: |
+          ssh -i ~/.ssh/deploy_key \
+            davinci_yonge-mallo@ssh.nyc1.nearlyfreespeech.net \
+            'mkdir -p /home/public/uqttt/game'
+
+      - name: Rsync bundle to NFSN
+        # --delete purges old hash-suffixed wasm/js files from prior builds so
+        # /home/public/uqttt/game/ never accumulates dead assets. Trailing slash
+        # on the source is load-bearing: copies the *contents*, not the dir.
+        run: |
+          rsync -avz --delete \
+            -e "ssh -i ~/.ssh/deploy_key" \
+            composeApp/build/dist/wasmJs/productionExecutable/ \
+            davinci_yonge-mallo@ssh.nyc1.nearlyfreespeech.net:/home/public/uqttt/game/
+
+# --- One-time setup ---
+#
+# 1. On the dev machine, generate a deploy key with no passphrase:
+#      ssh-keygen -t ed25519 -f ~/.ssh/uqttt_deploy -C "uqttt-deploy" -N ""
+#
+# 2. Register the *public* key with NFSN:
+#      https://members.nearlyfreespeech.net/davinci/profile/add_ssh_key
+#    Paste the contents of ~/.ssh/uqttt_deploy.pub.
+#
+# 3. Add the *private* key to this repo's secrets:
+#      https://github.com/dlyongemallo/ultimate-quantum-tic-tac-toe/settings/secrets/actions
+#    Name: NFSN_SSH_KEY
+#    Value: contents of ~/.ssh/uqttt_deploy (the whole file, including
+#           the BEGIN/END lines and the trailing newline).
