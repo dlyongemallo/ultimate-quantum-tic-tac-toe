@@ -1,8 +1,8 @@
 name: Deploy web
 
 # Manual only: click "Run workflow" on the Actions tab to publish the current
-# wasm bundle to https://www.yonge-mallo.net/uqttt/game/. Kept off `push` so a
-# broken game can't ship by accident.
+# wasm bundle to https://www.yonge-mallo.net/games/uqttt/play/. Kept off
+# `push` so a broken game can't ship by accident.
 "on":
   workflow_dispatch:
     inputs:
@@ -64,17 +64,18 @@ jobs:
         run: |
           ssh -i ~/.ssh/deploy_key \
             davinci_yonge-mallo@ssh.nyc1.nearlyfreespeech.net \
-            'mkdir -p /home/public/uqttt/game'
+            'mkdir -p /home/public/games/uqttt/play'
 
       - name: Rsync bundle to NFSN
         # --delete purges old hash-suffixed wasm/js files from prior builds so
-        # /home/public/uqttt/game/ never accumulates dead assets. Trailing slash
-        # on the source is load-bearing: copies the *contents*, not the dir.
+        # /home/public/games/uqttt/play/ never accumulates dead assets.
+        # Trailing slash on the source is load-bearing: copies the *contents*,
+        # not the dir.
         run: |
           rsync -avz --delete \
             -e "ssh -i ~/.ssh/deploy_key" \
             composeApp/build/dist/wasmJs/productionExecutable/ \
-            davinci_yonge-mallo@ssh.nyc1.nearlyfreespeech.net:/home/public/uqttt/game/
+            davinci_yonge-mallo@ssh.nyc1.nearlyfreespeech.net:/home/public/games/uqttt/play/
 
 # --- One-time setup ---
 #
