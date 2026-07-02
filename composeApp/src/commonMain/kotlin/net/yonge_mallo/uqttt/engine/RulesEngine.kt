@@ -619,7 +619,7 @@ internal data class Loop(val nodes: List<Square>, val edges: List<Entanglement>)
         require(nodes.size == edges.size) {
             "a loop has the same number of nodes and edges"
         }
-        require(nodes.size >= 2) { "a loop spans at least two distinct squares" }
+        require(nodes.size >= 3) { "a loop spans at least three distinct squares" }
     }
 }
 
