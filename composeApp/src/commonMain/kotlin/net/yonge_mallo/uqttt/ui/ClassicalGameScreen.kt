@@ -40,6 +40,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.key.Key
@@ -190,12 +191,18 @@ fun ClassicalGameScreen(
                         ) { Text("Redo") }
                     },
                 )
-                if (viewModel.thinking) {
-                    LinearProgressIndicator(
-                        progress = { thinkingProgress },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                }
+                // Always in the layout tree so the topBar's height (and
+                // therefore the Scaffold's content padding) is constant;
+                // `alpha` toggles visibility without a size change, so
+                // the board doesn't jitter each time the AI starts or
+                // stops thinking.
+                LinearProgressIndicator(
+                    progress = { thinkingProgress },
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .alpha(if (viewModel.thinking) 1f else 0f),
+                )
             }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
