@@ -78,6 +78,7 @@ class BoardGeometry private constructor(
                 Variant.QUANTUM_TIC_TAC_TOE -> intArrayOf(1)
                 Variant.QUANTUM_TIC_TAC_TOE_SQUARED,
                 Variant.ULTIMATE_QUANTUM_TIC_TAC_TOE,
+                Variant.ULTIMATE_TIC_TAC_TOE,
                 -> IntArray(9) { it + 1 }
             }
         for (board in boards) {
@@ -111,6 +112,7 @@ class BoardGeometry private constructor(
                     Variant.QUANTUM_TIC_TAC_TOE -> 0f
                     Variant.QUANTUM_TIC_TAC_TOE_SQUARED,
                     Variant.ULTIMATE_QUANTUM_TIC_TAC_TOE,
+                    Variant.ULTIMATE_TIC_TAC_TOE,
                     -> side * 0.02f
                 }
             val squareSize =
@@ -118,6 +120,7 @@ class BoardGeometry private constructor(
                     Variant.QUANTUM_TIC_TAC_TOE -> side / 3f
                     Variant.QUANTUM_TIC_TAC_TOE_SQUARED,
                     Variant.ULTIMATE_QUANTUM_TIC_TAC_TOE,
+                    Variant.ULTIMATE_TIC_TAC_TOE,
                     -> (side - 2 * metaGap) / 9f
                 }
             val miniBoardSize = 3 * squareSize

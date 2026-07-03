@@ -166,7 +166,7 @@ class LegalityTest {
 
     @Test
     fun initialStateIsEmpty() {
-        for (variant in Variant.entries) {
+        for (variant in Variant.entries.filter { it.isQuantum }) {
             val state = Rules.initial(variant)
             assertEquals(variant, state.variant)
             assertEquals(Player.X, state.nextPlayer)

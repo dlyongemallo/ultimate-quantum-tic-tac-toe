@@ -105,6 +105,7 @@ fun Variant.displayName(): String =
         Variant.QUANTUM_TIC_TAC_TOE -> "Quantum Tic-Tac-Toe"
         Variant.QUANTUM_TIC_TAC_TOE_SQUARED -> "Quantum Tic-Tac-Toe Squared"
         Variant.ULTIMATE_QUANTUM_TIC_TAC_TOE -> "Ultimate Quantum Tic-Tac-Toe"
+        Variant.ULTIMATE_TIC_TAC_TOE -> "Ultimate Tic-Tac-Toe"
     }
 
 /** Which kind of agent is on the X / O seat for a given player. */

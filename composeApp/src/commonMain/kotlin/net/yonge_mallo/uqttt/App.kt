@@ -31,6 +31,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import net.yonge_mallo.uqttt.engine.Variant
+import net.yonge_mallo.uqttt.ui.ClassicalGameScreen
 import net.yonge_mallo.uqttt.ui.GameScreen
 import net.yonge_mallo.uqttt.ui.GameSetup
 import net.yonge_mallo.uqttt.ui.MenuScreen
@@ -76,8 +77,15 @@ fun App(colorScheme: ColorScheme? = null) {
                             screen = Screen.Game(setup)
                         },
                     )
-                is Screen.Game ->
-                    GameScreen(setup = current.setup, onExit = { screen = Screen.Menu })
+                is Screen.Game -> {
+                    val setup = current.setup
+                    val onExit = { screen = Screen.Menu }
+                    if (setup.variant.isClassical) {
+                        ClassicalGameScreen(setup = setup, onExit = onExit)
+                    } else {
+                        GameScreen(setup = setup, onExit = onExit)
+                    }
+                }
             }
         }
     }

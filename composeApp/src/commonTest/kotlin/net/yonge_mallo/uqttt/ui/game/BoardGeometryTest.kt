@@ -97,6 +97,7 @@ class BoardGeometryTest {
                     Variant.QUANTUM_TIC_TAC_TOE -> listOf(1)
                     Variant.QUANTUM_TIC_TAC_TOE_SQUARED,
                     Variant.ULTIMATE_QUANTUM_TIC_TAC_TOE,
+                    Variant.ULTIMATE_TIC_TAC_TOE,
                     -> (1..9).toList()
                 }
             for (board in boards) {

@@ -67,6 +67,7 @@ import net.yonge_mallo.uqttt.ui.game.CollapsePicker
 import net.yonge_mallo.uqttt.ui.game.GameOverDialog
 import net.yonge_mallo.uqttt.ui.game.GameViewModel
 import net.yonge_mallo.uqttt.ui.game.differingSquares
+import net.yonge_mallo.uqttt.ui.game.toBoardView
 import kotlin.coroutines.coroutineContext
 import kotlin.time.TimeSource
 
@@ -294,7 +295,7 @@ fun GameScreen(
                 if (landscape) {
                     Row(modifier = Modifier.fillMaxSize()) {
                         BoardArea(
-                            state = displayedState,
+                            view = displayedState.toBoardView(),
                             selection = viewModel.selection,
                             onSquareTap = viewModel::onSquareTap,
                             modifier = Modifier.weight(1f).fillMaxHeight(),
@@ -323,7 +324,7 @@ fun GameScreen(
                 } else {
                     Column(modifier = Modifier.fillMaxSize()) {
                         BoardArea(
-                            state = displayedState,
+                            view = displayedState.toBoardView(),
                             selection = viewModel.selection,
                             onSquareTap = viewModel::onSquareTap,
                             modifier = Modifier.weight(1f).fillMaxWidth(),
@@ -347,7 +348,7 @@ fun GameScreen(
                 }
             } else {
                 BoardArea(
-                    state = displayedState,
+                    view = displayedState.toBoardView(),
                     selection = viewModel.selection,
                     onSquareTap = viewModel::onSquareTap,
                     modifier = Modifier.fillMaxSize(),

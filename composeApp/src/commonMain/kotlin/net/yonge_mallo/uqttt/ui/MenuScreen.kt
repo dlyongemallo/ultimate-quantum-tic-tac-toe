@@ -74,13 +74,28 @@ fun MenuScreen(
             modifier = Modifier.align(Alignment.CenterHorizontally).width(IntrinsicSize.Max),
             verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
+            // Group the variant list by family so the parent-and-quantum
+            // relationship is legible: three quantum games and their
+            // classical parent live in the same app, but they are
+            // distinct kinds of game.
             Section(title = "Game variant") {
-                Variant.entries.forEach { v ->
-                    ChoiceRow(
-                        label = v.displayName(),
-                        selected = v == variant,
-                        onSelect = { variant = v },
-                    )
+                VariantGroup("Classical") {
+                    Variant.entries.filter { it.isClassical }.forEach { v ->
+                        ChoiceRow(
+                            label = v.displayName(),
+                            selected = v == variant,
+                            onSelect = { variant = v },
+                        )
+                    }
+                }
+                VariantGroup("Quantum") {
+                    Variant.entries.filter { it.isQuantum }.forEach { v ->
+                        ChoiceRow(
+                            label = v.displayName(),
+                            selected = v == variant,
+                            onSelect = { variant = v },
+                        )
+                    }
                 }
             }
 
@@ -133,6 +148,30 @@ private fun Section(
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(text = title, style = MaterialTheme.typography.titleMedium)
+        content()
+    }
+}
+
+/**
+ * A subordinate group inside a `Section`: a small header (Classical /
+ * Quantum) above its own set of `ChoiceRow`s. Provides the extra
+ * vertical breathing room between groups so the two families read as
+ * separate.
+ */
+@Composable
+private fun VariantGroup(
+    title: String,
+    content: @Composable () -> Unit,
+) {
+    Column(
+        modifier = Modifier.padding(top = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+        )
         content()
     }
 }
