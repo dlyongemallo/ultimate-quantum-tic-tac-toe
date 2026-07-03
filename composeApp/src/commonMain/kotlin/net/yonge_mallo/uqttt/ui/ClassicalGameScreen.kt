@@ -59,6 +59,7 @@ import net.yonge_mallo.uqttt.engine.ClassicalIllegalReason
 import net.yonge_mallo.uqttt.engine.ClassicalRules
 import net.yonge_mallo.uqttt.ui.game.BoardArea
 import net.yonge_mallo.uqttt.ui.game.ClassicalGameViewModel
+import net.yonge_mallo.uqttt.ui.game.SystemBackGuard
 import net.yonge_mallo.uqttt.ui.game.toBoardView
 import kotlin.coroutines.coroutineContext
 import kotlin.time.TimeSource
@@ -89,6 +90,12 @@ fun ClassicalGameScreen(
 
     var showBackConfirm: Boolean by remember { mutableStateOf(false) }
     var thinkingProgress: Float by remember { mutableStateOf(0f) }
+
+    // Route a platform back gesture (Android system Back, browser Back
+    // on Wasm) through the same confirmation dialog as the in-app Back
+    // button so the user can't lose a game in progress by accident.
+    // No-op on desktop and iOS.
+    SystemBackGuard { showBackConfirm = true }
 
     LaunchedEffect(Unit) { runCatching { focusRequester.requestFocus() } }
 
