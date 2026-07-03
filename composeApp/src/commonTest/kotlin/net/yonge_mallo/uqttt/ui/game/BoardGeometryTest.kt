@@ -119,9 +119,9 @@ class BoardGeometryTest {
     }
 
     @Test
-    fun squareAtReturnsNullInTheUltimateMetaGap() {
-        // The visible gap between mini-boards in Ultimate is not a square,
-        // so tapping there is a no-op (no Square to return).
+    fun squareAtReturnsNullInTheMetaBoardGap() {
+        // The visible gap between mini-boards in the meta-board variants
+        // is not a square, so tapping there is a no-op (no Square to return).
         val g = BoardGeometry.fit(Size(900f, 900f), Variant.QUANTUM_TIC_TAC_TOE_SQUARED)
         val gapCenterX = g.origin.x + g.miniBoardSize + g.metaGap / 2f
         val gapCenterY = g.origin.y + g.miniBoardSize / 2f

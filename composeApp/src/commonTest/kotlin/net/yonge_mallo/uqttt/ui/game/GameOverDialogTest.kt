@@ -30,8 +30,8 @@ import kotlin.test.assertTrue
  * The end-of-game dialog title is derived purely from `GameState`'s
  * computed properties, so we pin the mapping down without bringing
  * up a Compose UI host. Draws in particular are essentially
- * unreachable in regular Ultimate play, so a synthetic-state test is
- * the only practical coverage.
+ * unreachable in regular Ultimate Quantum play, so a synthetic-state
+ * test is the only practical coverage.
  */
 class GameOverDialogTest {
     @Test

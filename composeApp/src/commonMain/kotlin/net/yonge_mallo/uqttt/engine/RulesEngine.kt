@@ -228,10 +228,10 @@ data class GameState(
         get() = if (nextMoveNumber % 2 == 1) Player.X else Player.O
 
     /**
-     * The set of players who have currently won the meta-game (Ultimate)
-     * or the single mini-board (Quantum). Size 0 = nobody yet, size 1 =
-     * a single winner, size 2 = a shared win (both players completed
-     * winning lines in the same collapse).
+     * The set of players who have currently won the meta-game (Squared
+     * or Ultimate Quantum) or the single mini-board (Quantum). Size 0
+     * = nobody yet, size 1 = a single winner, size 2 = a shared win
+     * (both players completed winning lines in the same collapse).
      */
     val winners: Set<Player> get() = computeWinners(variant, wonBoards)
 
