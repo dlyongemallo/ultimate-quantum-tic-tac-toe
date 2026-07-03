@@ -267,6 +267,7 @@ private fun DrawScope.drawGrids(
             Variant.QUANTUM_TIC_TAC_TOE -> intArrayOf(1)
             Variant.QUANTUM_TIC_TAC_TOE_SQUARED,
             Variant.ULTIMATE_QUANTUM_TIC_TAC_TOE,
+            Variant.ULTIMATE_TIC_TAC_TOE,
             -> IntArray(9) { it + 1 }
         }
     val innerStroke = geometry.squareSize * 0.03f

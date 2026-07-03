@@ -282,5 +282,7 @@ class GameViewModel(
             Variant.ULTIMATE_QUANTUM_TIC_TAC_TOE,
             ->
                 (1..9).flatMap { b -> (1..9).map { p -> Square(b, p) } }
+            Variant.ULTIMATE_TIC_TAC_TOE ->
+                error("classical variant reached quantum GameViewModel")
         }
 }

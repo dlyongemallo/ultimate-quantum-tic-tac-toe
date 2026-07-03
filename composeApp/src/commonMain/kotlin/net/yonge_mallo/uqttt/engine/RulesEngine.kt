@@ -14,16 +14,20 @@
  * limitations under the License.
  */
 
-// Ultimate Quantum Tic-Tac-Toe -- rules engine.
+// Ultimate Quantum Tic-Tac-Toe -- quantum rules engine.
 //
 // Immutable domain types plus the apply/resolve/legalMoves API consumed
-// by the UI and the AI. Three variants share this engine: Goff's
-// original Quantum Tic-Tac-Toe on a single mini-board, Quantum
+// by the UI and the AI. Three quantum variants share this engine:
+// Goff's original Quantum Tic-Tac-Toe on a single mini-board, Quantum
 // Tic-Tac-Toe Squared on a 3x3 grid of mini-boards (per-pair inter-board
 // entanglement constraint, meta-board win condition), and Ultimate
 // Quantum Tic-Tac-Toe which adds the classical-Ultimate sending rule on
 // top of Squared. All three share the same move placement, loop
-// detection, and collapse cascade machinery.
+// detection, and collapse cascade machinery. The classical parent
+// game (`ULTIMATE_TIC_TAC_TOE`) is handled by `ClassicalRules` in
+// `ClassicalRulesEngine.kt`; it shares the `Variant` enum and helpers
+// like `BOARD_LINES` / `recomputeWonBoards` / `computeWinners` but has
+// its own state and move types.
 //
 // Mini-boards are numbered 1..9 and squares within a mini-board are
 // numbered 1..9, both in reading order:
@@ -37,7 +41,12 @@ package net.yonge_mallo.uqttt.engine
 // ---------------------------------------------------------------------------
 
 /**
- * The supported games.
+ * The supported games. Three of the four are quantum and share
+ * `Rules` / `GameState`; the fourth is the classical parent game and
+ * uses `ClassicalRules` / `ClassicalGameState` instead. `isClassical`
+ * / `isQuantum` project each variant onto the family that owns its
+ * engine, so UI-layer code that has to hold "either kind" (menu
+ * selection, screen routing) doesn't have to enumerate cases.
  *
  * In `QUANTUM_TIC_TAC_TOE`, every square sits on mini-board 1 and the
  * inter-board entanglement constraint is vacuous; the game is won by
@@ -54,11 +63,24 @@ package net.yonge_mallo.uqttt.engine
  * unless that's unsatisfiable -- in which case the opponent has free
  * play. The sending rule is what makes this variant *Ultimate*; without
  * it the meta-board is just a parallel pile of mini-boards.
+ *
+ * `ULTIMATE_TIC_TAC_TOE` is the classical parent game: single-square
+ * placements on a 3x3 meta-grid of 3x3 mini-boards, with the classical
+ * sending rule (a move at position `p` sends the opponent to
+ * mini-board `p`, unless that board is already won or full -- then
+ * they play freely). Meta-board win condition matches
+ * `QUANTUM_TIC_TAC_TOE_SQUARED`. Has no quantum pairs, entanglements,
+ * or collapses; players see only their marks.
  */
 enum class Variant {
     QUANTUM_TIC_TAC_TOE,
     QUANTUM_TIC_TAC_TOE_SQUARED,
     ULTIMATE_QUANTUM_TIC_TAC_TOE,
+    ULTIMATE_TIC_TAC_TOE,
+    ;
+
+    val isClassical: Boolean get() = this == ULTIMATE_TIC_TAC_TOE
+    val isQuantum: Boolean get() = !isClassical
 }
 
 // ---------------------------------------------------------------------------
@@ -266,8 +288,11 @@ data class PendingCollapse(
 
 object Rules {
     /** A fresh game with no marks placed in the chosen variant. */
-    fun initial(variant: Variant): GameState =
-        GameState(
+    fun initial(variant: Variant): GameState {
+        require(variant.isQuantum) {
+            "Rules.initial is for quantum variants only; use ClassicalRules.initial for $variant"
+        }
+        return GameState(
             variant = variant,
             classical = emptyMap(),
             quantum = emptyList(),
@@ -275,6 +300,7 @@ object Rules {
             wonBoards = emptyMap(),
             nextMoveNumber = 1,
         )
+    }
 
     /**
      * Attempt to play a move. Returns Legal, TriggersCollapse, or
@@ -546,6 +572,8 @@ object Rules {
                     Variant.ULTIMATE_QUANTUM_TIC_TAC_TOE,
                     ->
                         (1..9).flatMap { b -> (1..9).map { p -> Square(b, p) } }
+                    Variant.ULTIMATE_TIC_TAC_TOE ->
+                        error("classical variant reached quantum Rules.legalMoves")
                 }
             val open = squares.filterNot { it in state.classical }
             val occupiedInterBoardPairs: Set<Set<Int>> =
@@ -800,10 +828,10 @@ private fun winnersOfMiniBoard(
 }
 
 /**
- * The set of meta-game winners. In Quantum Tic-Tac-Toe this is just the
- * winners of mini-board 1. In Ultimate, a player wins the meta-game
- * when they hold three mini-boards in a row, where a shared mini-board
- * counts as held by both players.
+ * The set of meta-game winners. In Quantum Tic-Tac-Toe this is just
+ * the winners of mini-board 1. In every other variant a player wins
+ * the meta-game when they hold three mini-boards in a row, where a
+ * shared mini-board counts as held by both players.
  */
 internal fun computeWinners(
     variant: Variant,
@@ -813,6 +841,7 @@ internal fun computeWinners(
         Variant.QUANTUM_TIC_TAC_TOE -> wonBoards[1] ?: emptySet()
         Variant.QUANTUM_TIC_TAC_TOE_SQUARED,
         Variant.ULTIMATE_QUANTUM_TIC_TAC_TOE,
+        Variant.ULTIMATE_TIC_TAC_TOE,
         -> {
             val winners = mutableSetOf<Player>()
             for (player in Player.entries) {
