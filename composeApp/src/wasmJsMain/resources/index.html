@@ -7,7 +7,16 @@
     <link rel="icon" type="image/png" sizes="512x512" href="favicon.png">
     <title>Ultimate Quantum Tic-Tac-Toe</title>
     <style>
-        html, body { margin: 0; padding: 0; height: 100%; background: #ffffff; }
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            color-scheme: light dark;
+            background: #fffbfe;
+        }
+        @media (prefers-color-scheme: dark) {
+            html, body { background: #1c1b1f; }
+        }
         canvas { display: block; }
     </style>
 </head>
