@@ -96,9 +96,10 @@ class BoardGeometry private constructor(
 
     companion object {
         /**
-         * Largest centred square that fits inside `canvasSize`. In
-         * Ultimate we reserve ~2% of the side as a visible gap between
-         * mini-boards; in Quantum the gap is zero (one mini-board).
+         * Largest centred square that fits inside `canvasSize`. In the
+         * meta-board variants we reserve ~2% of the side as a visible
+         * gap between mini-boards; in Quantum the gap is zero (one
+         * mini-board).
          */
         fun fit(
             canvasSize: Size,

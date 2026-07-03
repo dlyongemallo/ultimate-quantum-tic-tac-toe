@@ -216,11 +216,12 @@ private fun iterate(
 private fun MctsNode.ensureUntried(random: Random) {
     if (untriedActions != null) return
     val actions = state.legalActions().toMutableList()
-    // High branching factor (3240 legal pairs in fresh Ultimate) makes
-    // MCTS degenerate: every iteration just expands another untried
-    // child, the UCB selector never runs at the root, and the final
-    // pick is a near-tie on visits. Prune to a fixed-size top-K by a
-    // fast positional prior so the search actually discriminates.
+    // High branching factor (3240 legal pairs in fresh Ultimate
+    // Quantum) makes MCTS degenerate: every iteration just expands
+    // another untried child, the UCB selector never runs at the root,
+    // and the final pick is a near-tie on visits. Prune to a
+    // fixed-size top-K by a fast positional prior so the search
+    // actually discriminates.
     if (actions.size > MAX_UNTRIED_PER_NODE) {
         prioritiseActions(actions, state)
         while (actions.size > MAX_UNTRIED_PER_NODE) actions.removeAt(actions.lastIndex)
@@ -240,11 +241,11 @@ private fun MctsNode.ensureUntried(random: Random) {
 // constant note where it shows up.
 
 // Top-K cap on the action list each node retains for expansion. A
-// fresh Ultimate position has ~3240 legal pairs; without pruning every
-// `iterate()` would expand a fresh untried child and the UCB selector
-// at the root would never run. K is chosen so that even at the
-// shallowest difficulty (`Difficulty.BEGINNER` = 2 000 iterations)
-// each surviving root child gets several visits.
+// fresh Ultimate Quantum position has ~3240 legal pairs; without
+// pruning every `iterate()` would expand a fresh untried child and
+// the UCB selector at the root would never run. K is chosen so that
+// even at the shallowest difficulty (`Difficulty.BEGINNER` = 2 000
+// iterations) each surviving root child gets several visits.
 private const val MAX_UNTRIED_PER_NODE = 40
 
 // Per-square weight of a quantum mark vs a classical mark (1.0) on a
@@ -357,8 +358,8 @@ private fun prioritiseActions(
  *
  * Two further adjustments narrow the AI's focus:
  *
- *  - In Ultimate, line contributions for a square in a mini-board
- *    whose outcome is already decided are scaled by
+ *  - In Ultimate Quantum, line contributions for a square in a
+ *    mini-board whose outcome is already decided are scaled by
  *    `WON_BOARD_LINE_WEIGHT`. The line still matters a little (a
  *    sliver, not zero, so the strategic exceptions remain reachable),
  *    but the AI avoids spending top-K slots on dead territory.
@@ -366,10 +367,10 @@ private fun prioritiseActions(
  *  - Squares on a "one move from completion" line for *either* side
  *    receive a flat `TACTICAL_BLOCK_BONUS` -- big enough to dominate
  *    typical line-sum contributions, so the move always survives the
- *    pruning step. In Ultimate the same bonus extends to any open
- *    square in the third mini-board of an unblocked meta-line where
- *    one side has already won the other two, since that mini-board's
- *    outcome decides the meta-line.
+ *    pruning step. In Ultimate Quantum the same bonus extends to any
+ *    open square in the third mini-board of an unblocked meta-line
+ *    where one side has already won the other two, since that
+ *    mini-board's outcome decides the meta-line.
  */
 private fun perSquareContribution(
     state: GameState,
@@ -432,14 +433,15 @@ private fun perSquareContribution(
             }
         }
     }
-    // Meta-board tactical threat (Squared and Ultimate): if one side
-    // has already won two mini-boards on an unblocked meta-line and
-    // the third is still winnable, any open square in that third
-    // mini-board gets the tactical bonus. A meta-line is blocked for
-    // a side only if some board on it is closed against that side --
-    // i.e., won solely by the opponent or drawn. A shared mini-board
-    // (both players in `winners`) counts for both sides and blocks
-    // neither, because `computeWinners` also credits it to both.
+    // Meta-board tactical threat (Squared and Ultimate Quantum): if
+    // one side has already won two mini-boards on an unblocked
+    // meta-line and the third is still winnable, any open square in
+    // that third mini-board gets the tactical bonus. A meta-line is
+    // blocked for a side only if some board on it is closed against
+    // that side -- i.e., won solely by the opponent or drawn. A
+    // shared mini-board (both players in `winners`) counts for both
+    // sides and blocks neither, because `computeWinners` also credits
+    // it to both.
     if (state.variant == Variant.QUANTUM_TIC_TAC_TOE_SQUARED ||
         state.variant == Variant.ULTIMATE_QUANTUM_TIC_TAC_TOE
     ) {
@@ -557,16 +559,16 @@ private fun resolveAwareReward(
 
 /**
  * Spooky-aware positional heuristic, applied per mini-board (classical
- * + quantum lines) and -- in Ultimate -- per meta-board (won-mini-board
- * lines). For each 3-square line we tally a weighted presence count
- * per player: a classical mark contributes 1.0, a quantum mark on a
- * not-yet-collapsed square contributes `SPOOKY_WEIGHT` (less than a
- * real mark because the collapse might land elsewhere, but still real
- * potential). Counting quantum presence gives MCTS a non-zero
- * gradient before any cycle has closed -- otherwise the heuristic
- * would return 0 for the entire pre-collapse phase of an Ultimate
- * game and the search would have nothing to prefer one early move
- * over another.
+ * + quantum lines) and -- in Ultimate Quantum -- per meta-board
+ * (won-mini-board lines). For each 3-square line we tally a weighted
+ * presence count per player: a classical mark contributes 1.0, a
+ * quantum mark on a not-yet-collapsed square contributes
+ * `SPOOKY_WEIGHT` (less than a real mark because the collapse might
+ * land elsewhere, but still real potential). Counting quantum presence
+ * gives MCTS a non-zero gradient before any cycle has closed --
+ * otherwise the heuristic would return 0 for the entire pre-collapse
+ * phase of an Ultimate Quantum game and the search would have nothing
+ * to prefer one early move over another.
  *
  * Line score is `weight^2` if the opponent has *no classical* mark on
  * the line; a classical opponent mark permanently blocks it, whereas

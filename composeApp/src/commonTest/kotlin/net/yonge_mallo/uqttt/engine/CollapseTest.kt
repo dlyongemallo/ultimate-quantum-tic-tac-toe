@@ -26,7 +26,7 @@ import kotlin.test.assertTrue
  * Loop detection + collapse resolution + cascade.
  *
  * The fixed Quantum cases verify the exact classical maps the two
- * resolutions of a 3-cycle produce. The Ultimate case verifies that a
+ * resolutions of a 3-cycle produce. The Squared case verifies that a
  * 3-cycle whose loop nodes carry tree-edges propagates the collapse
  * outward through those edges so every hanging quantum mark is
  * resolved.
