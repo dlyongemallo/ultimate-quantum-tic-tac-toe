@@ -131,13 +131,24 @@ fun GameScreen(
     // pending state would be applied to the wrong base state.
     LaunchedEffect(pending) { previewChoice = null }
 
-    // AI turns. Re-keyed on `current` so undo / new moves cancel any
-    // in-flight AI run; the `finally` always clears the thinking flag,
-    // and the cancellation check before applying guards against an AI
-    // result arriving after a concurrent undo. A sibling coroutine
-    // ticks `thinkingProgress` so the linear progress bar under the
-    // top bar can fill smoothly.
-    LaunchedEffect(state, setup.players) {
+    val generation = viewModel.generation
+
+    // AI turns. Re-keyed on `viewModel.generation` (bumped by every
+    // commit / reset / undo / redo) so any state mutation cancels an
+    // in-flight AI run and re-fires this effect; the `finally` always
+    // clears the thinking flag. Two guards protect against a stale
+    // result: `ensureActive` catches the common case where the
+    // LaunchedEffect scope has already been cancelled, and the
+    // `viewModel.generation == generation` check closes the narrow race
+    // where the coroutine returned before cancellation reached it, or
+    // where a reset / undo-redo cycle landed on a structurally
+    // identical position (structural equality on `current` would
+    // falsely accept the stale move -- generation identity won't).
+    // Applying a stale move would then hit `applyAiMove`'s illegal-move
+    // assertion and crash. A sibling coroutine ticks
+    // `thinkingProgress` so the linear progress bar under the top bar
+    // can fill smoothly.
+    LaunchedEffect(generation, setup.players) {
         if (state.isGameOver) return@LaunchedEffect
         val toAct = pending?.chooser ?: state.nextPlayer
         if (setup.players.kindFor(toAct) != PlayerKind.AI) return@LaunchedEffect
@@ -172,11 +183,15 @@ fun GameScreen(
             if (pending != null) {
                 val choice = chooseCollapse(state, maxIterations, maxTimeMs)
                 coroutineContext.ensureActive()
-                viewModel.resolveCollapse(choice)
+                if (viewModel.generation == generation) {
+                    viewModel.resolveCollapse(choice)
+                }
             } else {
                 val move = chooseMove(state, maxIterations, maxTimeMs)
                 coroutineContext.ensureActive()
-                viewModel.applyAiMove(move)
+                if (viewModel.generation == generation) {
+                    viewModel.applyAiMove(move)
+                }
             }
         } finally {
             progressJob.cancel()

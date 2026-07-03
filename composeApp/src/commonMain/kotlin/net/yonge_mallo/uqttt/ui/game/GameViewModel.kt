@@ -50,6 +50,19 @@ class GameViewModel(
     var current: GameState by mutableStateOf(initial)
         private set
 
+    /**
+     * Monotonically increasing counter bumped on every mutation of
+     * `current` (commit, reset, undo, redo). Used by `GameScreen`'s AI
+     * `LaunchedEffect` as a freshness token: the coroutine captures
+     * this at launch and refuses to apply its result if it no longer
+     * matches. Structural equality on `current` isn't enough on its
+     * own -- a reset to a structurally-identical initial state, or an
+     * undo/redo cycle that lands on a structurally-identical position,
+     * would otherwise let a stale AI move slip through.
+     */
+    var generation: Int by mutableStateOf(0)
+        private set
+
     var selection: Square? by mutableStateOf(null)
         private set
 
@@ -196,6 +209,7 @@ class GameViewModel(
             current = undoStack.removeAt(undoStack.lastIndex)
         } while (undoStack.isNotEmpty() && activePlayer(current) in aiPlayers)
         selection = null
+        generation++
     }
 
     /** Mirror of `undo`: chains through recorded AI states so a single redo lands on a human-controllable state. */
@@ -206,6 +220,7 @@ class GameViewModel(
             current = redoStack.removeAt(redoStack.lastIndex)
         } while (redoStack.isNotEmpty() && activePlayer(current) in aiPlayers)
         selection = null
+        generation++
     }
 
     private fun activePlayer(state: GameState): Player? {
@@ -229,6 +244,7 @@ class GameViewModel(
         thinking = false
         undoStack.clear()
         redoStack.clear()
+        generation++
     }
 
     private fun commit(newState: GameState) {
@@ -250,6 +266,7 @@ class GameViewModel(
         redoStack.clear()
         current = nextCurrent
         selection = null
+        generation++
     }
 
     private fun hasIdenticalOutcomes(choices: List<CollapseChoice>): Boolean {
