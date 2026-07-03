@@ -66,6 +66,7 @@ import net.yonge_mallo.uqttt.ui.game.BoardArea
 import net.yonge_mallo.uqttt.ui.game.CollapsePicker
 import net.yonge_mallo.uqttt.ui.game.GameOverDialog
 import net.yonge_mallo.uqttt.ui.game.GameViewModel
+import net.yonge_mallo.uqttt.ui.game.SystemBackGuard
 import net.yonge_mallo.uqttt.ui.game.differingSquares
 import net.yonge_mallo.uqttt.ui.game.toBoardView
 import kotlin.coroutines.coroutineContext
@@ -104,6 +105,12 @@ fun GameScreen(
     var previewChoice: CollapseChoice? by remember { mutableStateOf(null) }
     var showBackConfirm: Boolean by remember { mutableStateOf(false) }
     var thinkingProgress: Float by remember { mutableStateOf(0f) }
+
+    // Route a platform back gesture (Android system Back, browser Back
+    // on Wasm) through the same confirmation dialog as the in-app Back
+    // button so the user can't lose a game in progress by accident.
+    // No-op on desktop and iOS.
+    SystemBackGuard { showBackConfirm = true }
 
     // Re-request focus whenever the picker is gone (initial mount and after
     // every collapse resolves). The picker's radio rows and Confirm button
