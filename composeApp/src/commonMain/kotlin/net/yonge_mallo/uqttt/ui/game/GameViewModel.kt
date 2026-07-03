@@ -119,13 +119,20 @@ class GameViewModel(
 
     /**
      * Two-stage selection state machine. Tapping the already-selected
-     * square deselects it; tapping a classical square or tapping while a
-     * collapse is pending / the game is over is a silent no-op. A
-     * successful second tap submits the move via `Rules.apply`.
+     * square deselects it; tapping a classical square or tapping while
+     * a collapse is pending, the game is over, or it is an AI-controlled
+     * player's turn is a silent no-op. A successful second tap submits
+     * the move via `Rules.apply`. The AI-turn check backstops the
+     * `thinking` flag against the small window between a state change
+     * committing (a human move handing control to the AI, undo/redo)
+     * and the AI `LaunchedEffect` flipping `thinking = true`; in that
+     * window a fast pair of taps would otherwise submit a move on the
+     * AI's behalf.
      */
     fun onSquareTap(square: Square) {
         if (thinking) return
         if (current.pendingCollapse != null || current.isGameOver) return
+        if (activePlayer(current) in aiPlayers) return
         if (square in current.classical) return
 
         val first = selection
