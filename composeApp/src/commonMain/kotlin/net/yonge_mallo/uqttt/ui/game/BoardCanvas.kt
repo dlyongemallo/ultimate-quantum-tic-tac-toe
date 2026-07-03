@@ -35,8 +35,7 @@ import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
-import net.yonge_mallo.uqttt.engine.GameState
-import net.yonge_mallo.uqttt.engine.Move
+import net.yonge_mallo.uqttt.engine.Entanglement
 import net.yonge_mallo.uqttt.engine.Player
 import net.yonge_mallo.uqttt.engine.QuantumMark
 import net.yonge_mallo.uqttt.engine.Square
@@ -62,7 +61,7 @@ import kotlin.math.sqrt
  */
 @Composable
 fun BoardCanvas(
-    state: GameState,
+    view: BoardView,
     selection: Square?,
     onSquareTap: (Square) -> Unit,
     modifier: Modifier = Modifier,
@@ -84,32 +83,33 @@ fun BoardCanvas(
 
     Canvas(
         modifier =
-            modifier.pointerInput(state.variant) {
+            modifier.pointerInput(view.variant) {
                 detectTapGestures { offset ->
                     val geometry =
                         BoardGeometry.fit(
                             Size(size.width.toFloat(), size.height.toFloat()),
-                            state.variant,
+                            view.variant,
                         )
                     val square = geometry.squareAt(offset)
                     if (square != null) onSquareTap(square) else onOutsideTap()
                 }
             },
     ) {
-        val geometry = BoardGeometry.fit(size, state.variant)
+        val geometry = BoardGeometry.fit(size, view.variant)
         // Pre-compute the glyph centre for every quantum mark so the
         // entanglement curves and the mark glyphs agree on where the
         // mark actually sits (otherwise lines end at the square centre
         // while the glyphs are drawn offset around an orbit).
-        val markPositions = computeMarkPositions(state, geometry)
+        val markPositions = computeMarkPositions(view.quantum, geometry)
         drawGrids(geometry, gridColor)
         if (sentBoards != null) drawSentBoards(sentBoards, geometry, sentColor)
-        drawEntanglements(state, geometry, markPositions)
+        drawEntanglements(view.entanglements, geometry, markPositions)
         if (highlightedSquares.isNotEmpty()) {
             drawHighlightedSquares(highlightedSquares, geometry, tintColor)
         }
-        val lastMove = state.lastMove
-        if (lastMove != null) drawLastMoveHighlight(lastMove, geometry, lastMoveColor)
+        if (view.lastMoveSquares.isNotEmpty()) {
+            drawLastMoveHighlight(view.lastMoveSquares, geometry, lastMoveColor)
+        }
         if (illegalEndpoints.isNotEmpty()) {
             // Hash the squares the constraint says are illegal with one
             // diagonal direction; hash the already-classical squares
@@ -122,16 +122,16 @@ fun BoardCanvas(
                 HashDirection.TOP_LEFT_TO_BOTTOM_RIGHT,
             )
             drawHashedSquares(
-                state.classical.keys,
+                view.classical.keys,
                 geometry,
                 gridColor,
                 HashDirection.BOTTOM_LEFT_TO_TOP_RIGHT,
             )
         }
         if (selection != null) drawSelection(selection, geometry, highlightColor)
-        drawClassicalMarks(state, geometry)
-        drawQuantumMarks(state, geometry, textMeasurer, markPositions)
-        drawWonBoardRings(state, geometry)
+        drawClassicalMarks(view.classical, geometry)
+        drawQuantumMarks(view.quantum, geometry, textMeasurer, markPositions)
+        drawWonBoardRings(view.wonBoards, geometry)
         if (indicatorSquare != null) {
             drawIndicatorArrow(indicatorSquare, geometry, highlightColor)
         }
@@ -145,11 +145,11 @@ fun BoardCanvas(
  * entanglement endpoints agree.
  */
 private fun computeMarkPositions(
-    state: GameState,
+    quantum: List<QuantumMark>,
     geometry: BoardGeometry,
 ): Map<QuantumMark, Offset> {
     val result = mutableMapOf<QuantumMark, Offset>()
-    state.quantum.groupBy { it.square }.forEach { (square, marks) ->
+    quantum.groupBy { it.square }.forEach { (square, marks) ->
         val center = geometry.squareCenter(square)
         val n = marks.size
         marks.forEachIndexed { i, mark ->
@@ -320,13 +320,13 @@ private fun DrawScope.drawSentBoards(
 }
 
 private fun DrawScope.drawClassicalMarks(
-    state: GameState,
+    classical: Map<Square, Player>,
     geometry: BoardGeometry,
 ) {
     val halfSize = geometry.squareSize * 0.28f
     val radius = geometry.squareSize * 0.30f
     val stroke = geometry.squareSize * 0.10f
-    state.classical.forEach { (square, player) ->
+    classical.forEach { (square, player) ->
         val center = geometry.squareCenter(square)
         val color = colorOf(player)
         if (player == Player.X) {
@@ -338,7 +338,7 @@ private fun DrawScope.drawClassicalMarks(
 }
 
 private fun DrawScope.drawQuantumMarks(
-    state: GameState,
+    quantum: List<QuantumMark>,
     geometry: BoardGeometry,
     textMeasurer: TextMeasurer,
     markPositions: Map<QuantumMark, Offset>,
@@ -347,7 +347,7 @@ private fun DrawScope.drawQuantumMarks(
     val radius = geometry.squareSize * 0.14f
     val stroke = geometry.squareSize * 0.05f
     val numberFontSize = (geometry.squareSize * 0.14f).toSp()
-    state.quantum.forEach { mark ->
+    quantum.forEach { mark ->
         val pos = markPositions[mark] ?: return@forEach
         val color = colorOf(mark.player)
         if (mark.player == Player.X) {
@@ -408,12 +408,12 @@ private fun DrawScope.drawOGlyph(
 }
 
 private fun DrawScope.drawEntanglements(
-    state: GameState,
+    entanglements: List<Entanglement>,
     geometry: BoardGeometry,
     markPositions: Map<QuantumMark, Offset>,
 ) {
     val stroke = geometry.squareSize * 0.035f
-    state.entanglements.forEach { edge ->
+    entanglements.forEach { edge ->
         val a = markPositions[edge.a] ?: geometry.squareCenter(edge.a.square)
         val b = markPositions[edge.b] ?: geometry.squareCenter(edge.b.square)
         val dx = b.x - a.x
@@ -438,7 +438,7 @@ private fun DrawScope.drawEntanglements(
 }
 
 private fun DrawScope.drawLastMoveHighlight(
-    lastMove: Move,
+    lastMoveSquares: Set<Square>,
     geometry: BoardGeometry,
     color: Color,
 ) {
@@ -446,7 +446,7 @@ private fun DrawScope.drawLastMoveHighlight(
     val dashOn = geometry.squareSize * 0.12f
     val dashOff = geometry.squareSize * 0.08f
     val pathEffect = PathEffect.dashPathEffect(floatArrayOf(dashOn, dashOff), 0f)
-    listOf(lastMove.a, lastMove.b).forEach { sq ->
+    lastMoveSquares.forEach { sq ->
         val rect = geometry.squareRect(sq).deflate(stroke / 2f)
         drawRect(
             color = color,
@@ -470,14 +470,14 @@ private fun DrawScope.drawSelection(
 }
 
 private fun DrawScope.drawWonBoardRings(
-    state: GameState,
+    wonBoards: Map<Int, Set<Player>>,
     geometry: BoardGeometry,
 ) {
     val stroke = geometry.squareSize * 0.10f
     val inset = stroke * 1.6f
     // A shared mini-board draws a second concentric ring inset by `inset`
     // so both winners' colours are visible.
-    state.wonBoards.forEach { (board, winners) ->
+    wonBoards.forEach { (board, winners) ->
         val rect = geometry.miniBoardRect(board)
         winners.forEachIndexed { i, player ->
             val off = inset * i

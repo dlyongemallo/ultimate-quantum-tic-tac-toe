@@ -21,7 +21,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import net.yonge_mallo.uqttt.engine.GameState
 import net.yonge_mallo.uqttt.engine.Square
 
 /**
@@ -32,7 +31,7 @@ import net.yonge_mallo.uqttt.engine.Square
  */
 @Composable
 fun BoardArea(
-    state: GameState,
+    view: BoardView,
     selection: Square?,
     onSquareTap: (Square) -> Unit,
     modifier: Modifier = Modifier,
@@ -47,7 +46,7 @@ fun BoardArea(
     ) {
         val side = minOf(maxWidth, maxHeight)
         BoardCanvas(
-            state = state,
+            view = view,
             selection = selection,
             onSquareTap = onSquareTap,
             modifier = Modifier.size(side),
