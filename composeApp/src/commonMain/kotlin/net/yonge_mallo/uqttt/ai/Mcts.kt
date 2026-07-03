@@ -432,29 +432,42 @@ private fun perSquareContribution(
             }
         }
     }
-    // Meta-board tactical threat (Ultimate only): if one side has
-    // already won two mini-boards on an unblocked meta-line and the
-    // third is undecided, any open square in that third mini-board
-    // gets the tactical bonus.
-    if (state.variant == Variant.QUANTUM_TIC_TAC_TOE_SQUARED) {
+    // Meta-board tactical threat (Squared and Ultimate): if one side
+    // has already won two mini-boards on an unblocked meta-line and
+    // the third is still winnable, any open square in that third
+    // mini-board gets the tactical bonus. A meta-line is blocked for
+    // a side only if some board on it is closed against that side --
+    // i.e., won solely by the opponent or drawn. A shared mini-board
+    // (both players in `winners`) counts for both sides and blocks
+    // neither, because `computeWinners` also credits it to both.
+    if (state.variant == Variant.QUANTUM_TIC_TAC_TOE_SQUARED ||
+        state.variant == Variant.ULTIMATE_QUANTUM_TIC_TAC_TOE
+    ) {
         for (line in BOARD_LINES) {
             var pBoards = 0
             var oBoards = 0
             var undecidedBoardIdx = -1
             var undecidedCount = 0
+            var pBlocked = false
+            var oBlocked = false
             for (boardIdx in line) {
                 val winners = state.wonBoards[boardIdx]
                 if (winners.isNullOrEmpty()) {
-                    undecidedBoardIdx = boardIdx
-                    undecidedCount++
+                    if (isBoardFull(boardIdx, classical)) {
+                        pBlocked = true
+                        oBlocked = true
+                    } else {
+                        undecidedBoardIdx = boardIdx
+                        undecidedCount++
+                    }
                 } else {
-                    if (player in winners) pBoards++
-                    if (opp in winners) oBoards++
+                    if (player in winners) pBoards++ else pBlocked = true
+                    if (opp in winners) oBoards++ else oBlocked = true
                 }
             }
             if (undecidedCount != 1) continue
-            val playerMetaThreat = pBoards == 2 && oBoards == 0
-            val oppMetaThreat = oBoards == 2 && pBoards == 0
+            val playerMetaThreat = pBoards == 2 && !pBlocked
+            val oppMetaThreat = oBoards == 2 && !oBlocked
             if (!playerMetaThreat && !oppMetaThreat) continue
             for (pos in 1..9) {
                 val sq = Square(undecidedBoardIdx, pos)
@@ -465,6 +478,24 @@ private fun perSquareContribution(
         }
     }
     return contrib
+}
+
+/**
+ * Whether every square in `board` carries a classical mark. A
+ * mini-board with no winner (`wonBoards[board]` empty) that is
+ * nonetheless full is drawn -- no further placements can land there,
+ * so it permanently blocks any meta-line it sits on. Used by the
+ * heuristic paths that walk meta-lines to distinguish drawn from
+ * still-in-progress mini-boards.
+ */
+private fun isBoardFull(
+    board: Int,
+    classical: Map<Square, Player>,
+): Boolean {
+    for (position in 1..9) {
+        if (Square(board, position) !in classical) return false
+    }
+    return true
 }
 
 private fun MctsNode.selectBestUcb(): MctsNode {
@@ -609,7 +640,9 @@ private fun nonTerminalHeuristic(
             if (aiClassical == 0) score -= oppW * oppW * boardMultiplier
         }
     }
-    if (state.variant == Variant.QUANTUM_TIC_TAC_TOE_SQUARED) {
+    if (state.variant == Variant.QUANTUM_TIC_TAC_TOE_SQUARED ||
+        state.variant == Variant.ULTIMATE_QUANTUM_TIC_TAC_TOE
+    ) {
         // Flat per-won-board credit -- structurally guarantees that
         // winning a mini-board is a net positive heuristic event even
         // when the won board's downweighted line contributions don't
@@ -619,16 +652,31 @@ private fun nonTerminalHeuristic(
             if (aiPlayer in winners) score += WIN_BOARD_BONUS
             if (opp in winners) score -= WIN_BOARD_BONUS
         }
+        // Meta-line scoring. A meta-line is dead for a side only when
+        // some board on it is closed against that side -- won solely
+        // by the opponent, or drawn (no winner but every square
+        // classical). A shared mini-board (both players in `winners`)
+        // counts for both sides and blocks neither, matching how
+        // `computeWinners` credits it to both.
         for (line in BOARD_LINES) {
             var ai = 0
             var op = 0
+            var aiBlocked = false
+            var opBlocked = false
             for (boardIdx in line) {
-                val winners = state.wonBoards[boardIdx] ?: continue
-                if (aiPlayer in winners) ai++
-                if (opp in winners) op++
+                val winners = state.wonBoards[boardIdx]
+                if (winners.isNullOrEmpty()) {
+                    if (isBoardFull(boardIdx, classical)) {
+                        aiBlocked = true
+                        opBlocked = true
+                    }
+                    continue
+                }
+                if (aiPlayer in winners) ai++ else aiBlocked = true
+                if (opp in winners) op++ else opBlocked = true
             }
-            if (op == 0) score += ai * ai * META_BASE_WEIGHT
-            if (ai == 0) score -= op * op * META_BASE_WEIGHT
+            if (!aiBlocked) score += ai * ai * META_BASE_WEIGHT
+            if (!opBlocked) score -= op * op * META_BASE_WEIGHT
         }
     }
     return (score / HEURISTIC_SCALE).coerceIn(-HEURISTIC_BOUND, HEURISTIC_BOUND)
