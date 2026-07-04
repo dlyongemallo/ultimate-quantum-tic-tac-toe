@@ -236,6 +236,7 @@ fun ClassicalGameScreen(
                         if (fileOps != null) {
                             AdvancedActionsMenu(
                                 onSave = { fileOpsScope.launch { fileOps.saveGame(viewModel.current) } },
+                                onExportTikz = { fileOpsScope.launch { fileOps.exportTikz(viewModel.current) } },
                             )
                         }
                     },

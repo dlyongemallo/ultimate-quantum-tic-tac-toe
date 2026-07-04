@@ -27,9 +27,12 @@ import net.yonge_mallo.uqttt.engine.ClassicalGameState
 import net.yonge_mallo.uqttt.engine.GameState
 import net.yonge_mallo.uqttt.engine.Variant
 import kotlin.js.Promise
+import net.yonge_mallo.uqttt.tikz.exportTikz as generateTikz
 
 private const val MIME_JSON: String = "application/json"
+private const val MIME_TEX: String = "text/x-tex"
 private const val SAVE_EXTENSION: String = "uqttt"
+private const val TIKZ_EXTENSION: String = "tex"
 
 /**
  * The one shared implementation on the web build. Kept as a
@@ -49,6 +52,14 @@ private object WebGameFileOps : GameFileOps {
         val text = pickTextFile(".uqttt,.json,application/json") ?: return null
         return decodeSavedGame(text)
     }
+
+    override suspend fun exportTikz(state: GameState) {
+        downloadText(tikzFileName(state.variant), MIME_TEX, generateTikz(state))
+    }
+
+    override suspend fun exportTikz(state: ClassicalGameState) {
+        downloadText(tikzFileName(state.variant), MIME_TEX, generateTikz(state))
+    }
 }
 
 actual val gameFileOps: GameFileOps? = WebGameFileOps
@@ -61,6 +72,11 @@ actual val gameFileOps: GameFileOps? = WebGameFileOps
 private fun saveFileName(variant: Variant): String {
     val slug = variant.name.lowercase().replace('_', '-')
     return "$slug.$SAVE_EXTENSION"
+}
+
+private fun tikzFileName(variant: Variant): String {
+    val slug = variant.name.lowercase().replace('_', '-')
+    return "$slug.$TIKZ_EXTENSION"
 }
 
 /**

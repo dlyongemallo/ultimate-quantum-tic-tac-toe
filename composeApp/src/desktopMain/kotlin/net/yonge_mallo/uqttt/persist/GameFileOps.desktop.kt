@@ -17,7 +17,7 @@
 package net.yonge_mallo.uqttt.persist
 
 /**
- * Desktop does not currently expose save / restore
+ * Desktop does not currently expose save / restore or TikZ export
  * from the UI (those are expert-only features intended for the web
  * build). Returning null hides the corresponding entry points.
  */
