@@ -17,7 +17,6 @@
 package net.yonge_mallo.uqttt.ui
 
 import androidx.compose.foundation.focusable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -26,7 +25,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Scaffold
@@ -46,13 +44,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.input.key.Key
-import androidx.compose.ui.input.key.KeyEventType
-import androidx.compose.ui.input.key.isCtrlPressed
-import androidx.compose.ui.input.key.isShiftPressed
-import androidx.compose.ui.input.key.key
-import androidx.compose.ui.input.key.onKeyEvent
-import androidx.compose.ui.input.key.type
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
@@ -67,12 +58,15 @@ import net.yonge_mallo.uqttt.engine.Square
 import net.yonge_mallo.uqttt.engine.Variant
 import net.yonge_mallo.uqttt.persist.gameFileOps
 import net.yonge_mallo.uqttt.ui.game.AdvancedActionsMenu
+import net.yonge_mallo.uqttt.ui.game.BackConfirmDialog
 import net.yonge_mallo.uqttt.ui.game.BoardArea
 import net.yonge_mallo.uqttt.ui.game.CollapsePicker
 import net.yonge_mallo.uqttt.ui.game.GameOverDialog
 import net.yonge_mallo.uqttt.ui.game.GameViewModel
+import net.yonge_mallo.uqttt.ui.game.IllegalReasonSnackbar
 import net.yonge_mallo.uqttt.ui.game.SystemBackGuard
 import net.yonge_mallo.uqttt.ui.game.differingSquares
+import net.yonge_mallo.uqttt.ui.game.gameKeyEvents
 import net.yonge_mallo.uqttt.ui.game.toBoardView
 import kotlin.coroutines.coroutineContext
 import kotlin.time.TimeSource
@@ -150,12 +144,12 @@ fun GameScreen(
         }
     }
 
-    LaunchedEffect(illegalReason) {
-        if (illegalReason != null) {
-            snackbarHostState.showSnackbar(message = illegalReason.displayMessage())
-            viewModel.dismissIllegalReason()
-        }
-    }
+    IllegalReasonSnackbar(
+        reason = illegalReason,
+        message = IllegalReason::displayMessage,
+        onDismiss = viewModel::dismissIllegalReason,
+        host = snackbarHostState,
+    )
 
     val state = viewModel.current
     val pending = state.pendingCollapse
@@ -274,34 +268,12 @@ fun GameScreen(
             Modifier
                 .focusRequester(focusRequester)
                 .focusable()
-                .onKeyEvent { event ->
-                    if (event.type != KeyEventType.KeyDown) return@onKeyEvent false
-                    // Space toggles pause / resume in demo mode.
-                    // Checked before the Ctrl gate below because it
-                    // has no modifier requirement, matching the
-                    // universal video-playback convention.
-                    if (demoMode && event.key == Key.Spacebar) {
-                        paused = !paused
-                        return@onKeyEvent true
-                    }
-                    if (!event.isCtrlPressed) return@onKeyEvent false
-                    // Ctrl+Z / Ctrl+Y / Ctrl+Shift+Z drain the entire
-                    // AI-vs-AI history in one click (the loops chain
-                    // through AI states); mirror the top-bar
-                    // behaviour and swallow the keystroke in demo.
-                    if (demoMode) return@onKeyEvent false
-                    when (event.key) {
-                        Key.Z -> {
-                            if (event.isShiftPressed) viewModel.redo() else viewModel.undo()
-                            true
-                        }
-                        Key.Y -> {
-                            viewModel.redo()
-                            true
-                        }
-                        else -> false
-                    }
-                },
+                .gameKeyEvents(
+                    demoMode = demoMode,
+                    onUndo = viewModel::undo,
+                    onRedo = viewModel::redo,
+                    onTogglePause = { paused = !paused },
+                ),
         topBar = {
             // `LinearProgressIndicator` lives below `TopAppBar`, not in
             // its `actions` slot, so the bar's `actions` no longer
@@ -434,22 +406,11 @@ fun GameScreen(
         }
 
         if (showBackConfirm) {
-            AlertDialog(
-                onDismissRequest = { showBackConfirm = false },
-                title = { Text("Leave game?") },
-                text = { Text("The current game will be lost.") },
-                confirmButton = {
-                    // The user already chose "Back", so "Leave" is the
-                    // confirming action and goes on the right (Material's
-                    // primary-button slot); "Stay" cancels and sits on the
-                    // left.
-                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        TextButton(onClick = { showBackConfirm = false }) { Text("Stay") }
-                        TextButton(onClick = {
-                            showBackConfirm = false
-                            onExit()
-                        }) { Text("Leave") }
-                    }
+            BackConfirmDialog(
+                onStay = { showBackConfirm = false },
+                onLeave = {
+                    showBackConfirm = false
+                    onExit()
                 },
             )
         }

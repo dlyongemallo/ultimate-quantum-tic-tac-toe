@@ -44,13 +44,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.input.key.Key
-import androidx.compose.ui.input.key.KeyEventType
-import androidx.compose.ui.input.key.isCtrlPressed
-import androidx.compose.ui.input.key.isShiftPressed
-import androidx.compose.ui.input.key.key
-import androidx.compose.ui.input.key.onKeyEvent
-import androidx.compose.ui.input.key.type
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
@@ -61,9 +54,12 @@ import net.yonge_mallo.uqttt.engine.ClassicalIllegalReason
 import net.yonge_mallo.uqttt.engine.ClassicalRules
 import net.yonge_mallo.uqttt.persist.gameFileOps
 import net.yonge_mallo.uqttt.ui.game.AdvancedActionsMenu
+import net.yonge_mallo.uqttt.ui.game.BackConfirmDialog
 import net.yonge_mallo.uqttt.ui.game.BoardArea
 import net.yonge_mallo.uqttt.ui.game.ClassicalGameViewModel
+import net.yonge_mallo.uqttt.ui.game.IllegalReasonSnackbar
 import net.yonge_mallo.uqttt.ui.game.SystemBackGuard
+import net.yonge_mallo.uqttt.ui.game.gameKeyEvents
 import net.yonge_mallo.uqttt.ui.game.toBoardView
 import kotlin.coroutines.coroutineContext
 import kotlin.time.TimeSource
@@ -120,12 +116,12 @@ fun ClassicalGameScreen(
 
     LaunchedEffect(Unit) { runCatching { focusRequester.requestFocus() } }
 
-    LaunchedEffect(illegalReason) {
-        if (illegalReason != null) {
-            snackbarHostState.showSnackbar(message = illegalReason.displayMessage())
-            viewModel.dismissIllegalReason()
-        }
-    }
+    IllegalReasonSnackbar(
+        reason = illegalReason,
+        message = ClassicalIllegalReason::displayMessage,
+        onDismiss = viewModel::dismissIllegalReason,
+        host = snackbarHostState,
+    )
 
     val state = viewModel.current
 
@@ -183,34 +179,12 @@ fun ClassicalGameScreen(
             Modifier
                 .focusRequester(focusRequester)
                 .focusable()
-                .onKeyEvent { event ->
-                    if (event.type != KeyEventType.KeyDown) return@onKeyEvent false
-                    // Space toggles pause / resume in demo mode.
-                    // Checked before the Ctrl gate below because it
-                    // has no modifier requirement, matching the
-                    // universal video-playback convention.
-                    if (demoMode && event.key == Key.Spacebar) {
-                        paused = !paused
-                        return@onKeyEvent true
-                    }
-                    if (!event.isCtrlPressed) return@onKeyEvent false
-                    // Ctrl+Z / Ctrl+Y / Ctrl+Shift+Z drain the entire
-                    // AI-vs-AI history in one click (the loops chain
-                    // through AI states); mirror the top-bar
-                    // behaviour and swallow the keystroke in demo.
-                    if (demoMode) return@onKeyEvent false
-                    when (event.key) {
-                        Key.Z -> {
-                            if (event.isShiftPressed) viewModel.redo() else viewModel.undo()
-                            true
-                        }
-                        Key.Y -> {
-                            viewModel.redo()
-                            true
-                        }
-                        else -> false
-                    }
-                },
+                .gameKeyEvents(
+                    demoMode = demoMode,
+                    onUndo = viewModel::undo,
+                    onRedo = viewModel::redo,
+                    onTogglePause = { paused = !paused },
+                ),
         topBar = {
             Column {
                 TopAppBar(
@@ -278,18 +252,11 @@ fun ClassicalGameScreen(
         }
 
         if (showBackConfirm) {
-            AlertDialog(
-                onDismissRequest = { showBackConfirm = false },
-                title = { Text("Leave game?") },
-                text = { Text("The current game will be lost.") },
-                confirmButton = {
-                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        TextButton(onClick = { showBackConfirm = false }) { Text("Stay") }
-                        TextButton(onClick = {
-                            showBackConfirm = false
-                            onExit()
-                        }) { Text("Leave") }
-                    }
+            BackConfirmDialog(
+                onStay = { showBackConfirm = false },
+                onLeave = {
+                    showBackConfirm = false
+                    onExit()
                 },
             )
         }
