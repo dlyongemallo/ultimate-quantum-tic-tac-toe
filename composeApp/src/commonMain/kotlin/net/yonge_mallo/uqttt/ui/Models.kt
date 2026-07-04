@@ -19,6 +19,7 @@ package net.yonge_mallo.uqttt.ui
 import androidx.compose.ui.graphics.Color
 import net.yonge_mallo.uqttt.engine.Player
 import net.yonge_mallo.uqttt.engine.Variant
+import net.yonge_mallo.uqttt.persist.SavedGame
 
 /**
  * Fixed mark colours -- intentionally not theme tokens so X stays red
@@ -100,7 +101,16 @@ data class GameSetup(
 sealed interface Screen {
     data object Menu : Screen
 
-    data class Game(val setup: GameSetup) : Screen
+    /**
+     * Play a game. `loadedGame` is null for a fresh game started
+     * from the menu; when non-null, the game screen initialises its
+     * view-model from the loaded state instead of `Rules.initial` /
+     * `ClassicalRules.initial`. Used by the "Load..." menu action.
+     */
+    data class Game(
+        val setup: GameSetup,
+        val loadedGame: SavedGame? = null,
+    ) : Screen
 }
 
 /** Human-readable label for a variant, for menu rows and game-screen headers. */

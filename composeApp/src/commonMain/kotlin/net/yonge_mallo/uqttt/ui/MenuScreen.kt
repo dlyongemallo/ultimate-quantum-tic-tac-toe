@@ -25,20 +25,27 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 import net.yonge_mallo.uqttt.BuildInfo
 import net.yonge_mallo.uqttt.engine.Variant
+import net.yonge_mallo.uqttt.persist.LoadResult
+import net.yonge_mallo.uqttt.persist.SavedGame
+import net.yonge_mallo.uqttt.persist.gameFileOps
 
 /**
  * The opening screen. Radio-button groups for variant, players, and
@@ -50,12 +57,20 @@ import net.yonge_mallo.uqttt.engine.Variant
 fun MenuScreen(
     initialSetup: GameSetup,
     onStart: (GameSetup) -> Unit,
+    onLoad: (SavedGame) -> Unit,
 ) {
     var variant: Variant by remember { mutableStateOf(initialSetup.variant) }
     var players: PlayersConfig by remember { mutableStateOf(initialSetup.players) }
     var difficulty: Difficulty by remember { mutableStateOf(initialSetup.difficulty) }
 
     val hasAi = players.aiPlayers().isNotEmpty()
+
+    // "Load..." action -- only available where the platform ships a
+    // file picker (web today). On other targets the button never
+    // renders because `gameFileOps` is null.
+    val fileOps = gameFileOps
+    val loadScope = rememberCoroutineScope()
+    var loadError: String? by remember { mutableStateOf(null) }
 
     Column(
         modifier = Modifier.fillMaxSize().padding(24.dp),
@@ -129,6 +144,23 @@ fun MenuScreen(
             Text("Start")
         }
 
+        if (fileOps != null) {
+            TextButton(
+                onClick = {
+                    loadScope.launch {
+                        when (val result = fileOps.openGame()) {
+                            is LoadResult.Ok -> onLoad(result.saved)
+                            is LoadResult.Failed -> loadError = result.reason
+                            null -> Unit // user cancelled the picker
+                        }
+                    }
+                },
+                modifier = Modifier.align(Alignment.CenterHorizontally),
+            ) {
+                Text("Load...")
+            }
+        }
+
         // Small build-identifier footer; subdued so it doesn't compete
         // with the form but visible enough to confirm at a glance
         // which build is running.
@@ -137,6 +169,17 @@ fun MenuScreen(
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
             modifier = Modifier.align(Alignment.CenterHorizontally),
+        )
+    }
+
+    loadError?.let { reason ->
+        AlertDialog(
+            onDismissRequest = { loadError = null },
+            title = { Text("Couldn't load game") },
+            text = { Text(reason) },
+            confirmButton = {
+                TextButton(onClick = { loadError = null }) { Text("OK") }
+            },
         )
     }
 }

@@ -39,6 +39,8 @@
 //    players hold a line in it) counts for both.
 package net.yonge_mallo.uqttt.engine
 
+import kotlinx.serialization.Serializable
+
 // ---------------------------------------------------------------------------
 // Moves and their outcomes.
 // ---------------------------------------------------------------------------
@@ -47,6 +49,7 @@ package net.yonge_mallo.uqttt.engine
  * The act of placing a single classical mark. The move number is
  * 1-based and its parity determines the player (X for odd, O for even).
  */
+@Serializable
 data class ClassicalMove(val number: Int, val square: Square) {
     init {
         require(number >= 1) { "move number is 1-based" }
@@ -104,6 +107,7 @@ sealed interface ClassicalMoveResult {
  *   closed (won or full), the mover has free play but the field
  *   still records where they were nominally sent.
  */
+@Serializable
 data class ClassicalGameState(
     val variant: Variant,
     val classical: Map<Square, Player>,

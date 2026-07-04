@@ -31,6 +31,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import net.yonge_mallo.uqttt.engine.Variant
+import net.yonge_mallo.uqttt.persist.SavedGame
 import net.yonge_mallo.uqttt.ui.ClassicalGameScreen
 import net.yonge_mallo.uqttt.ui.GameScreen
 import net.yonge_mallo.uqttt.ui.GameSetup
@@ -76,14 +77,34 @@ fun App(colorScheme: ColorScheme? = null) {
                             lastSetup = setup
                             screen = Screen.Game(setup)
                         },
+                        onLoad = { saved ->
+                            // A loaded game inherits the saved state's
+                            // variant. Player kinds and difficulty are
+                            // NOT persisted (they're a UI-level choice,
+                            // not part of the game position), so we reuse
+                            // whatever the menu currently has selected --
+                            // typically the last configuration the user
+                            // played with.
+                            val loadedVariant =
+                                when (saved) {
+                                    is SavedGame.Quantum -> saved.state.variant
+                                    is SavedGame.Classical -> saved.state.variant
+                                }
+                            val setup = lastSetup.copy(variant = loadedVariant)
+                            lastSetup = setup
+                            screen = Screen.Game(setup, saved)
+                        },
                     )
                 is Screen.Game -> {
                     val setup = current.setup
+                    val loaded = current.loadedGame
                     val onExit = { screen = Screen.Menu }
                     if (setup.variant.isClassical) {
-                        ClassicalGameScreen(setup = setup, onExit = onExit)
+                        val initial = (loaded as? SavedGame.Classical)?.state
+                        ClassicalGameScreen(setup = setup, onExit = onExit, loadedInitial = initial)
                     } else {
-                        GameScreen(setup = setup, onExit = onExit)
+                        val initial = (loaded as? SavedGame.Quantum)?.state
+                        GameScreen(setup = setup, onExit = onExit, loadedInitial = initial)
                     }
                 }
             }

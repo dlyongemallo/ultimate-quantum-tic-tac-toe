@@ -38,6 +38,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -58,6 +59,8 @@ import net.yonge_mallo.uqttt.ai.chooseClassicalMove
 import net.yonge_mallo.uqttt.engine.ClassicalGameState
 import net.yonge_mallo.uqttt.engine.ClassicalIllegalReason
 import net.yonge_mallo.uqttt.engine.ClassicalRules
+import net.yonge_mallo.uqttt.persist.gameFileOps
+import net.yonge_mallo.uqttt.ui.game.AdvancedActionsMenu
 import net.yonge_mallo.uqttt.ui.game.BoardArea
 import net.yonge_mallo.uqttt.ui.game.ClassicalGameViewModel
 import net.yonge_mallo.uqttt.ui.game.SystemBackGuard
@@ -85,11 +88,12 @@ private const val MIN_AI_MOVE_INTERVAL_MS: Long = 500L
 fun ClassicalGameScreen(
     setup: GameSetup,
     onExit: () -> Unit,
+    loadedInitial: ClassicalGameState? = null,
 ) {
     val viewModel =
-        remember(setup) {
+        remember(setup, loadedInitial) {
             ClassicalGameViewModel(
-                initial = ClassicalRules.initial(setup.variant),
+                initial = loadedInitial ?: ClassicalRules.initial(setup.variant),
                 aiPlayers = setup.players.aiPlayers(),
             )
         }
@@ -102,6 +106,11 @@ fun ClassicalGameScreen(
     var paused: Boolean by remember { mutableStateOf(false) }
 
     val demoMode = setup.players == PlayersConfig.AI_VS_AI
+
+    // File-picker actions only render when the platform supports
+    // them (web only today). See `AdvancedActionsMenu`.
+    val fileOps = gameFileOps
+    val fileOpsScope = rememberCoroutineScope()
 
     // Route a platform back gesture (Android system Back, browser Back
     // on Wasm) through the same confirmation dialog as the in-app Back
@@ -223,6 +232,11 @@ fun ClassicalGameScreen(
                                 onClick = viewModel::redo,
                                 enabled = viewModel.canRedo,
                             ) { Text("Redo") }
+                        }
+                        if (fileOps != null) {
+                            AdvancedActionsMenu(
+                                onSave = { fileOpsScope.launch { fileOps.saveGame(viewModel.current) } },
+                            )
                         }
                     },
                 )
