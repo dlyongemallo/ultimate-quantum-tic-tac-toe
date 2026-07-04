@@ -42,6 +42,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.key.Key
@@ -261,9 +262,11 @@ fun GameScreen(
         topBar = {
             // `LinearProgressIndicator` lives below `TopAppBar`, not in
             // its `actions` slot, so the bar's `actions` no longer
-            // squeeze the title. Conditional rendering means the bar
-            // is only drawn while the AI is thinking; the small layout
-            // shift when it appears is itself useful feedback.
+            // squeeze the title. The bar is always in the layout tree
+            // so the topBar's height (and therefore the Scaffold's
+            // content padding) is constant; `alpha` toggles visibility
+            // without a size change, so the board doesn't jitter each
+            // time the AI starts or stops thinking.
             Column {
                 TopAppBar(
                     title = { Text(setup.variant.displayName()) },
@@ -281,12 +284,13 @@ fun GameScreen(
                         ) { Text("Redo") }
                     },
                 )
-                if (viewModel.thinking) {
-                    LinearProgressIndicator(
-                        progress = { thinkingProgress },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                }
+                LinearProgressIndicator(
+                    progress = { thinkingProgress },
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .alpha(if (viewModel.thinking) 1f else 0f),
+                )
             }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
