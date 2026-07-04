@@ -36,6 +36,8 @@
 //  7 = bottom-left, 8 = bottom-centre, 9 = bottom-right).
 package net.yonge_mallo.uqttt.engine
 
+import kotlinx.serialization.Serializable
+
 // ---------------------------------------------------------------------------
 // Variants.
 // ---------------------------------------------------------------------------
@@ -72,6 +74,7 @@ package net.yonge_mallo.uqttt.engine
  * `QUANTUM_TIC_TAC_TOE_SQUARED`. Has no quantum pairs, entanglements,
  * or collapses; players see only their marks.
  */
+@Serializable
 enum class Variant {
     QUANTUM_TIC_TAC_TOE,
     QUANTUM_TIC_TAC_TOE_SQUARED,
@@ -87,6 +90,7 @@ enum class Variant {
 // Players and coordinates.
 // ---------------------------------------------------------------------------
 
+@Serializable
 enum class Player {
     X,
     O,
@@ -100,6 +104,7 @@ enum class Player {
  * position within that mini-board (1..9). Rendered as "B/S" to match the
  * paper's notation, e.g. Square(3, 1) prints as "3/1".
  */
+@Serializable
 data class Square(val board: Int, val position: Int) {
     init {
         require(board in 1..9) { "board must be 1..9, got $board" }
@@ -118,6 +123,7 @@ data class Square(val board: Int, val position: Int) {
  * sits in a particular square but has not yet collapsed to that square as
  * its final position. Several quantum marks may share a square.
  */
+@Serializable
 data class QuantumMark(
     val player: Player,
     val moveNumber: Int,
@@ -129,6 +135,7 @@ data class QuantumMark(
  * move. By construction the two marks share player and moveNumber and
  * differ only in their square.
  */
+@Serializable
 data class Entanglement(val a: QuantumMark, val b: QuantumMark) {
     init {
         require(a.moveNumber == b.moveNumber) { "endpoints share a move number" }
@@ -152,6 +159,7 @@ data class Entanglement(val a: QuantumMark, val b: QuantumMark) {
  * The act of placing an entangled pair. The move number is 1-based and
  * its parity determines the player (X for odd, O for even).
  */
+@Serializable
 data class Move(val number: Int, val a: Square, val b: Square) {
     init {
         require(number >= 1) { "move number is 1-based" }
@@ -201,6 +209,7 @@ sealed interface MoveResult {
  * off it) is mapped to the square it will become classical at. All
  * other quantum marks belonging to the same moves vanish on resolution.
  */
+@Serializable
 data class CollapseChoice(
     val id: Int,
     val assignments: Map<QuantumMark, Square>,
@@ -235,6 +244,7 @@ data class CollapseChoice(
  *   inside the sending-rule game on the turns where the sender's positions
  *   produced an unsatisfiable constraint (the opponent then has free play).
  */
+@Serializable
 data class GameState(
     val variant: Variant,
     val classical: Map<Square, Player>,
@@ -277,6 +287,7 @@ data class GameState(
  * choice that resolves it. The chooser is the player who did NOT close
  * the loop -- typically the opponent of the player who just moved.
  */
+@Serializable
 data class PendingCollapse(
     val chooser: Player,
     val choices: List<CollapseChoice>,

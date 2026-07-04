@@ -40,6 +40,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -59,10 +60,13 @@ import kotlinx.coroutines.launch
 import net.yonge_mallo.uqttt.ai.chooseCollapse
 import net.yonge_mallo.uqttt.ai.chooseMove
 import net.yonge_mallo.uqttt.engine.CollapseChoice
+import net.yonge_mallo.uqttt.engine.GameState
 import net.yonge_mallo.uqttt.engine.IllegalReason
 import net.yonge_mallo.uqttt.engine.Rules
 import net.yonge_mallo.uqttt.engine.Square
 import net.yonge_mallo.uqttt.engine.Variant
+import net.yonge_mallo.uqttt.persist.gameFileOps
+import net.yonge_mallo.uqttt.ui.game.AdvancedActionsMenu
 import net.yonge_mallo.uqttt.ui.game.BoardArea
 import net.yonge_mallo.uqttt.ui.game.CollapsePicker
 import net.yonge_mallo.uqttt.ui.game.GameOverDialog
@@ -99,11 +103,12 @@ private const val MIN_AI_MOVE_INTERVAL_MS: Long = 500L
 fun GameScreen(
     setup: GameSetup,
     onExit: () -> Unit,
+    loadedInitial: GameState? = null,
 ) {
     val viewModel =
-        remember(setup) {
+        remember(setup, loadedInitial) {
             GameViewModel(
-                initial = Rules.initial(setup.variant),
+                initial = loadedInitial ?: Rules.initial(setup.variant),
                 aiPlayers = setup.players.aiPlayers(),
             )
         }
@@ -117,6 +122,15 @@ fun GameScreen(
     var paused: Boolean by remember { mutableStateOf(false) }
 
     val demoMode = setup.players == PlayersConfig.AI_VS_AI
+
+    // Save / TikZ export actions live behind the overflow menu when
+    // this build ships a file-I/O implementation (web only today);
+    // `gameFileOps` is null on Android / desktop / iOS so the menu
+    // disappears there. The scope is remembered separately so the
+    // suspend file-picker call outlives the composable's own
+    // recomposition.
+    val fileOps = gameFileOps
+    val fileOpsScope = rememberCoroutineScope()
 
     // Route a platform back gesture (Android system Back, browser Back
     // on Wasm) through the same confirmation dialog as the in-app Back
@@ -316,6 +330,11 @@ fun GameScreen(
                                 onClick = viewModel::redo,
                                 enabled = viewModel.canRedo,
                             ) { Text("Redo") }
+                        }
+                        if (fileOps != null) {
+                            AdvancedActionsMenu(
+                                onSave = { fileOpsScope.launch { fileOps.saveGame(viewModel.current) } },
+                            )
                         }
                     },
                 )
