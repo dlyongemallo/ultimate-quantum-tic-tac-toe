@@ -260,12 +260,20 @@ fun GameScreen(
                 .focusRequester(focusRequester)
                 .focusable()
                 .onKeyEvent { event ->
-                    if (event.type != KeyEventType.KeyDown || !event.isCtrlPressed) {
-                        return@onKeyEvent false
+                    if (event.type != KeyEventType.KeyDown) return@onKeyEvent false
+                    // Space toggles pause / resume in demo mode.
+                    // Checked before the Ctrl gate below because it
+                    // has no modifier requirement, matching the
+                    // universal video-playback convention.
+                    if (demoMode && event.key == Key.Spacebar) {
+                        paused = !paused
+                        return@onKeyEvent true
                     }
-                    // Undo / redo drain the entire AI-vs-AI history in one
-                    // click (the loops chain through AI states); mirror the
-                    // top-bar behaviour and swallow the keystroke in demo.
+                    if (!event.isCtrlPressed) return@onKeyEvent false
+                    // Ctrl+Z / Ctrl+Y / Ctrl+Shift+Z drain the entire
+                    // AI-vs-AI history in one click (the loops chain
+                    // through AI states); mirror the top-bar
+                    // behaviour and swallow the keystroke in demo.
                     if (demoMode) return@onKeyEvent false
                     when (event.key) {
                         Key.Z -> {
