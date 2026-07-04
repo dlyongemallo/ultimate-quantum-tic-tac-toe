@@ -73,6 +73,14 @@ import kotlin.coroutines.coroutineContext
 import kotlin.time.TimeSource
 
 /**
+ * Wall-clock floor between AI moves in demo (AI-vs-AI) mode so fast
+ * turns stay watchable at the lower difficulties. Applied at the top
+ * of the AI-turn `LaunchedEffect` before the thinking indicator
+ * appears; longer natural thinking times pass through unchanged.
+ */
+private const val MIN_AI_MOVE_INTERVAL_MS: Long = 500L
+
+/**
  * The game screen. Scaffold provides the top bar (back to menu, undo,
  * redo, "Thinking..." indicator) and a SnackbarHost for illegal-move
  * feedback. The body is the board (square) sitting alongside a
@@ -105,6 +113,9 @@ fun GameScreen(
     var previewChoice: CollapseChoice? by remember { mutableStateOf(null) }
     var showBackConfirm: Boolean by remember { mutableStateOf(false) }
     var thinkingProgress: Float by remember { mutableStateOf(0f) }
+    var paused: Boolean by remember { mutableStateOf(false) }
+
+    val demoMode = setup.players == PlayersConfig.AI_VS_AI
 
     // Route a platform back gesture (Android system Back, browser Back
     // on Wasm) through the same confirmation dialog as the in-app Back
@@ -156,10 +167,16 @@ fun GameScreen(
     // assertion and crash. A sibling coroutine ticks
     // `thinkingProgress` so the linear progress bar under the top bar
     // can fill smoothly.
-    LaunchedEffect(generation, setup.players) {
+    LaunchedEffect(generation, setup.players, paused) {
         if (state.isGameOver) return@LaunchedEffect
         val toAct = pending?.chooser ?: state.nextPlayer
         if (setup.players.kindFor(toAct) != PlayerKind.AI) return@LaunchedEffect
+        if (paused) return@LaunchedEffect
+        // In demo mode (both seats AI) pace each move against a floor so
+        // fast AI turns don't blur past the eye. A pause at the top of
+        // the effect body cancels cleanly on any re-key (pause, back,
+        // undo) without touching the thinking indicator or progress bar.
+        if (demoMode) delay(MIN_AI_MOVE_INTERVAL_MS)
         val maxIterations =
             if (pending != null) {
                 setup.difficulty.maxCollapseIterations
@@ -246,6 +263,10 @@ fun GameScreen(
                     if (event.type != KeyEventType.KeyDown || !event.isCtrlPressed) {
                         return@onKeyEvent false
                     }
+                    // Undo / redo drain the entire AI-vs-AI history in one
+                    // click (the loops chain through AI states); mirror the
+                    // top-bar behaviour and swallow the keystroke in demo.
+                    if (demoMode) return@onKeyEvent false
                     when (event.key) {
                         Key.Z -> {
                             if (event.isShiftPressed) viewModel.redo() else viewModel.undo()
@@ -271,14 +292,20 @@ fun GameScreen(
                         TextButton(onClick = { showBackConfirm = true }) { Text("Back") }
                     },
                     actions = {
-                        TextButton(
-                            onClick = viewModel::undo,
-                            enabled = viewModel.canUndo,
-                        ) { Text("Undo") }
-                        TextButton(
-                            onClick = viewModel::redo,
-                            enabled = viewModel.canRedo,
-                        ) { Text("Redo") }
+                        if (demoMode) {
+                            TextButton(onClick = { paused = !paused }) {
+                                Text(if (paused) "Resume" else "Pause")
+                            }
+                        } else {
+                            TextButton(
+                                onClick = viewModel::undo,
+                                enabled = viewModel.canUndo,
+                            ) { Text("Undo") }
+                            TextButton(
+                                onClick = viewModel::redo,
+                                enabled = viewModel.canRedo,
+                            ) { Text("Redo") }
+                        }
                     },
                 )
                 if (viewModel.thinking) {
@@ -371,6 +398,7 @@ fun GameScreen(
                 onUndo = viewModel::undo,
                 onPlayAgain = { viewModel.reset(Rules.initial(setup.variant)) },
                 onMainMenu = onExit,
+                demoMode = demoMode,
             )
         }
 

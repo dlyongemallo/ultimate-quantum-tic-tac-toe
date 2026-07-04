@@ -47,9 +47,12 @@ enum class PlayerKind {
 }
 
 /**
- * The three player pairings offered by the opening screen. AI-vs-AI
- * is intentionally not offered: the app is for a human (or two) to
- * play, not to watch.
+ * The four player pairings offered by the opening screen: two human
+ * seats, one of each, or a demo where both seats are AI and the user
+ * watches. In demo mode the game screen replaces the undo / redo
+ * controls with a pause / resume toggle (the undo stack chains
+ * through AI states, so a single undo click would drain the whole
+ * history).
  */
 enum class PlayersConfig(
     val label: String,
@@ -59,6 +62,7 @@ enum class PlayersConfig(
     HUMAN_VS_HUMAN("Human vs Human", PlayerKind.HUMAN, PlayerKind.HUMAN),
     HUMAN_VS_AI("Human vs AI (human is X)", PlayerKind.HUMAN, PlayerKind.AI),
     AI_VS_HUMAN("AI vs Human (AI is X)", PlayerKind.AI, PlayerKind.HUMAN),
+    AI_VS_AI("AI vs AI (demo mode)", PlayerKind.AI, PlayerKind.AI),
 }
 
 /**
