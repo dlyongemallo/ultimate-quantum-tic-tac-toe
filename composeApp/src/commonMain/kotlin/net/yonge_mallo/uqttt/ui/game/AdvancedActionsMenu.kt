@@ -31,18 +31,21 @@ import androidx.compose.runtime.setValue
 
 /**
  * Overflow (kebab) menu for expert actions that aren't part of core
- * gameplay: currently just saving the current position to disk.
- * Rendered by the game screens' top bar `actions` slot only when
- * `persist.gameFileOps` is non-null; on Android / desktop / iOS it
- * never renders because those actuals return null.
+ * gameplay: save the current position to disk, export it as a TikZ
+ * fragment. Rendered by the game screens' top bar `actions` slot
+ * only when `persist.gameFileOps` is non-null; on Android / desktop
+ * / iOS it never renders because those actuals return null.
  *
  * The composable is agnostic to the state type (quantum or
- * classical) -- it just fires the callback the callsite provides,
- * which captures the current state and hands it to the platform's
+ * classical) -- it just fires the callbacks the callsite provides,
+ * which capture the current state and hand it to the platform's
  * `GameFileOps`.
  */
 @Composable
-fun AdvancedActionsMenu(onSave: () -> Unit) {
+fun AdvancedActionsMenu(
+    onSave: () -> Unit,
+    onExportTikz: () -> Unit,
+) {
     var expanded by remember { mutableStateOf(false) }
     IconButton(onClick = { expanded = true }) {
         Icon(Icons.Filled.MoreVert, contentDescription = "More")
@@ -53,6 +56,13 @@ fun AdvancedActionsMenu(onSave: () -> Unit) {
             onClick = {
                 expanded = false
                 onSave()
+            },
+        )
+        DropdownMenuItem(
+            text = { Text("Export as TikZ...") },
+            onClick = {
+                expanded = false
+                onExportTikz()
             },
         )
     }

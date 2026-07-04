@@ -15,9 +15,9 @@
  */
 
 // The `expect val gameFileOps: GameFileOps?` gate for the save /
-// restore action. Non-null only on the web build -- mobile and
-// desktop users don't get file I/O for this feature, and the UI
-// is expected to hide the entry points when the value is null.
+// restore and TikZ export actions. Non-null only on the web build --
+// mobile and desktop users don't get file I/O for these features, and
+// the UI is expected to hide the entry points when the value is null.
 package net.yonge_mallo.uqttt.persist
 
 import net.yonge_mallo.uqttt.engine.ClassicalGameState
@@ -49,13 +49,22 @@ interface GameFileOps {
      * the file is unreadable or its schema doesn't match.
      */
     suspend fun openGame(): LoadResult?
+
+    /**
+     * Prompt the user for a location and write the TikZ picture
+     * source there. Suggested filename ends `.tex`.
+     */
+    suspend fun exportTikz(state: GameState)
+
+    /** Classical sibling of `exportTikz(state: GameState)`. */
+    suspend fun exportTikz(state: ClassicalGameState)
 }
 
 /**
  * Platform's file-ops surface, or `null` when the platform doesn't
  * offer one. Read by the UI layer: a null value hides the save /
- * load entry points entirely. Kept as a top-level `expect val`
- * rather than an `expect fun` so it stays a compile-time constant,
- * cheap to check inside a `@Composable`.
+ * load / export entry points entirely. Kept as a top-level `expect
+ * val` rather than an `expect fun` so it stays a compile-time
+ * constant, cheap to check inside a `@Composable`.
  */
 expect val gameFileOps: GameFileOps?
