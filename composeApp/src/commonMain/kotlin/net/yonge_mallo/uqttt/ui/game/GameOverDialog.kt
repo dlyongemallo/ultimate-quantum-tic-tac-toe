@@ -46,7 +46,11 @@ internal fun gameOverOutcomeText(state: GameState): String =
  * here -- you cannot reach game-over without having committed at
  * least one move, which the undo stack records); Play again resets
  * the board state; Main menu pops to the opening screen. After Undo
- * the game is no longer over and the dialog auto-dismisses.
+ * the game is no longer over and the dialog auto-dismisses. In
+ * `demoMode` the Undo button is hidden (undo chains through AI states
+ * and would drain the whole history in one click) and "Play again"
+ * reads "New demo" instead, since the user is watching rather than
+ * playing.
  */
 @Composable
 fun GameOverDialog(
@@ -54,6 +58,7 @@ fun GameOverDialog(
     onUndo: () -> Unit,
     onPlayAgain: () -> Unit,
     onMainMenu: () -> Unit,
+    demoMode: Boolean = false,
 ) {
     val outcome = gameOverOutcomeText(state)
     AlertDialog(
@@ -63,8 +68,12 @@ fun GameOverDialog(
         // Same Row trick as `CollapsePicker`: keep declaration order.
         confirmButton = {
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                TextButton(onClick = onUndo) { Text("Undo") }
-                TextButton(onClick = onPlayAgain) { Text("Play again") }
+                if (!demoMode) {
+                    TextButton(onClick = onUndo) { Text("Undo") }
+                }
+                TextButton(onClick = onPlayAgain) {
+                    Text(if (demoMode) "New demo" else "Play again")
+                }
                 TextButton(onClick = onMainMenu) { Text("Main menu") }
             }
         },
