@@ -1,19 +1,25 @@
 # Ultimate Quantum Tic-Tac-Toe
 
-A cross-platform implementation of three related games.
+A cross-platform implementation of four related games.
+
+**Ultimate Tic-Tac-Toe** [^orlin2022] is an extension of Tic-Tac-Toe to a
+3-by-3 grid of 3-by-3 mini-boards, where the cell position of each move
+"sends" the opponent to the corresponding mini-board for the next move.
+Three won mini-boards in a line wins the game.
 
 **Quantum Tic-Tac-Toe**[^goff2006][^orlin2022] is a version of Tic-Tac-Toe where each
 move entangles two squares on the board, with a collapse when a loop is
 formed.
 
-**Quantum Tic-Tac-Toe Squared** extends the game to a 3-by-3 grid of 3-by-3
-mini-boards, allowing entangling moves across mini-boards (with at most
-one entanglement per pair of distinct mini-boards). Three won mini-boards in
-a line wins the game.
+**Quantum Tic-Tac-Toe Squared** extends the quantum game to a 3-by-3 grid of
+3-by-3 mini-boards, allowing entangling moves across mini-boards (with at most
+one entanglement per pair of distinct mini-boards).
 
-**Ultimate Quantum Tic-Tac-Toe** adds the "sending" rule from the (classical)
-Ultimate Tic-Tac-Toe[^orlin2022] game to the above: the cell positions of the pair placed
-by one player determines the mini-board(s) that the opponent must play on next.
+**Ultimate Quantum Tic-Tac-Toe** combines the Squared game with the "sending"
+rule from Ultimate Tic-Tac-Toe: the cell positions of the pair placed by one
+player determine the mini-board(s) that the opponent must play on next.
+
+The games are playable online [here](https://yonge-mallo.net/games/uqttt/).
 
 
 ## How to run
