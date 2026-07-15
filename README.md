@@ -37,4 +37,4 @@ Further details may be found in [this paper](docs/uqttt.pdf).
 [^orlin2022]: Ben Orlin, "Math Games with Bad Drawings", Black Dog & Leventhal,
     2022. ISBN 978-0-7624-9986-1.
 [^yongemallo2026]: David Yonge-Mallo, Nima Yonge-Mallo,
-    ["Ultimate Quantum Tic-Tac-Toe"](docs/uqttt.pdf), 2026.
+    ["Ultimate Quantum Tic-Tac-Toe"](https://github.com/dlyongemallo/ultimate-quantum-tic-tac-toe/blob/main/docs/uqttt.pdf), 2026.
