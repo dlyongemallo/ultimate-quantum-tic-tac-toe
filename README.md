@@ -11,15 +11,16 @@ Three won mini-boards in a line wins the game.
 move entangles two squares on the board, with a collapse when a loop is
 formed.
 
-**Quantum Tic-Tac-Toe Squared** extends the quantum game to a 3-by-3 grid of
+**Quantum Tic-Tac-Toe Squared**[^yongemallo2026] extends the quantum game to a 3-by-3 grid of
 3-by-3 mini-boards, allowing entangling moves across mini-boards (with at most
 one entanglement per pair of distinct mini-boards).
 
-**Ultimate Quantum Tic-Tac-Toe** combines the Squared game with the "sending"
+**Ultimate Quantum Tic-Tac-Toe**[^yongemallo2026] combines the Squared game with the "sending"
 rule from Ultimate Tic-Tac-Toe: the cell positions of the pair placed by one
 player determine the mini-board(s) that the opponent must play on next.
 
 The games are playable online [here](https://yonge-mallo.net/games/uqttt/).
+Further details may be found in [this paper](docs/uqttt.pdf).
 
 
 ## How to run
@@ -35,3 +36,5 @@ The games are playable online [here](https://yonge-mallo.net/games/uqttt/).
     [doi:10.1119/1.2213635](https://doi.org/10.1119/1.2213635).
 [^orlin2022]: Ben Orlin, "Math Games with Bad Drawings", Black Dog & Leventhal,
     2022. ISBN 978-0-7624-9986-1.
+[^yongemallo2026]: David Yonge-Mallo, Nima Yonge-Mallo,
+    ["Ultimate Quantum Tic-Tac-Toe"](docs/uqttt.pdf), 2026.
