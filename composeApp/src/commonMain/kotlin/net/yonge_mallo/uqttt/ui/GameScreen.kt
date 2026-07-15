@@ -136,9 +136,11 @@ fun GameScreen(
     // every collapse resolves). The picker's radio rows and Confirm button
     // pull focus away from the Scaffold root while they're on screen, and
     // without this re-request the Ctrl+Z / Ctrl+Y bindings stop firing until
-    // the user clicks one of the top-bar buttons.
+    // the user clicks one of the top-bar buttons. `canUndo` / `canRedo` are
+    // also keyed so a `TextButton` flipping to `enabled = false` at the end
+    // of either stack gets the same recovery.
     val pendingForFocus = viewModel.current.pendingCollapse
-    LaunchedEffect(pendingForFocus) {
+    LaunchedEffect(pendingForFocus, viewModel.canUndo, viewModel.canRedo) {
         if (pendingForFocus == null) {
             runCatching { focusRequester.requestFocus() }
         }

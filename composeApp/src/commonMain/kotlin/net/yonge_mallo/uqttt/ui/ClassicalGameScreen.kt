@@ -114,7 +114,11 @@ fun ClassicalGameScreen(
     // No-op on desktop and iOS.
     SystemBackGuard { showBackConfirm = true }
 
-    LaunchedEffect(Unit) { runCatching { focusRequester.requestFocus() } }
+    // Initial-mount focus grab, plus a re-grab whenever `canUndo` /
+    // `canRedo` toggles.
+    LaunchedEffect(viewModel.canUndo, viewModel.canRedo) {
+        runCatching { focusRequester.requestFocus() }
+    }
 
     IllegalReasonSnackbar(
         reason = illegalReason,
